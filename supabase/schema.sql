@@ -31,3 +31,6 @@ create policy "Users can update their own entries" on public.journal_entries for
 create policy "Users can delete their own entries" on public.journal_entries for delete using (auth.uid() = user_id);
 
 create index if not exists journal_entries_user_id_idx on public.journal_entries(user_id);
+
+grant select, insert, update on public.journal_profiles to authenticated;
+grant select, insert, update, delete on public.journal_entries to authenticated;
