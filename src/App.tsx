@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BookOpen, CalendarDays, Check, ChevronLeft, ChevronRight, Flame, LockKeyhole, Palette, Settings2, Sparkles } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
-import { journalPages, totalDays } from './data/journal'
+import { availabilityDay, journalPages, totalDays } from './data/journal'
 import { getStartDate, loadProgress, loadTheme, saveProgress, saveTheme } from './lib/storage'
 import { cloudConfigured, loadCloudProgress, saveCloudEntry, saveCloudProfile, supabase } from './lib/supabase'
 import type { JournalAnswers, JournalField, ProgressStore, ThemeName } from './types'
@@ -41,7 +41,9 @@ function App() {
   const entry = progress[page.id]
   const answers = entry?.answers || {}
   const completedCount = Object.values(progress).filter(item => item.completed).length
-  const maxUnlocked = Math.min(completedCount, journalPages.length - 1)
+  const elapsedDays = Math.max(0, Math.floor((Date.now() - new Date(`${startDate}T00:00:00`).getTime()) / 86_400_000))
+  const timeUnlockedIndex = journalPages.reduce((latest, item, index) => availabilityDay(item) <= elapsedDays ? index : latest, 0)
+  const maxUnlocked = Math.min(completedCount, timeUnlockedIndex, journalPages.length - 1)
   const percent = Math.round((completedCount / journalPages.length) * 100)
   const currentDay = journalPages.slice(0, maxUnlocked + 1).filter(item => item.day > 0 && item.day < 8).length || 1
 
@@ -87,6 +89,8 @@ function App() {
   }
 
   const canComplete = page.fields.filter(field => field.required).every(field => isFilled(answers[field.id]))
+  const nextPageIsTimeLocked = pageIndex < journalPages.length - 1 && pageIndex + 1 > timeUnlockedIndex
+  const nextUnlockDate = new Date(new Date(`${startDate}T00:00:00`).getTime() + availabilityDay(journalPages[Math.min(pageIndex + 1, journalPages.length - 1)]) * 86_400_000)
 
   const completePage = () => {
     if (!canComplete) return
@@ -104,7 +108,7 @@ function App() {
       if (user) void saveCloudEntry(user, page.id, next[page.id])
       return next
     })
-    if (pageIndex < journalPages.length - 1) setPageIndex(pageIndex + 1)
+    if (pageIndex < journalPages.length - 1 && pageIndex + 1 <= timeUnlockedIndex) setPageIndex(pageIndex + 1)
   }
 
   const goToPage = (index: number) => {
@@ -147,8 +151,8 @@ function App() {
         {page.quote && <blockquote>“{page.quote}”</blockquote>}
         {page.intro && <p className="intro">{page.intro}</p>}
         <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} />)}</div>
-        <div className="completion-note"><LockKeyhole size={17} /><span>Complete every required response to unlock the next page. Future days stay locked until you’re ready.</span></div>
-        <div className="page-actions"><button className="secondary" disabled={pageIndex === 0} onClick={() => setPageIndex(pageIndex - 1)}><ChevronLeft size={18} /> Back</button><button className="primary" disabled={!canComplete} onClick={completePage}>{entry?.completed ? 'Continue' : 'Complete page'} <ChevronRight size={18} /></button></div>
+        <div className="completion-note"><LockKeyhole size={17} /><span>{entry?.completed && nextPageIsTimeLocked ? `Today is complete. Your next page unlocks ${nextUnlockDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'Complete every required response to unlock the next page. Each new daily entry opens on its scheduled day.'}</span></div>
+        <div className="page-actions"><button className="secondary" disabled={pageIndex === 0} onClick={() => setPageIndex(pageIndex - 1)}><ChevronLeft size={18} /> Back</button><button className="primary" disabled={!canComplete || Boolean(entry?.completed && nextPageIsTimeLocked)} onClick={completePage}>{entry?.completed && nextPageIsTimeLocked ? 'Saved for today' : entry?.completed ? 'Continue' : 'Complete page'} <ChevronRight size={18} /></button></div>
       </article>}
     </main>
 

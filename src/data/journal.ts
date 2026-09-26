@@ -162,3 +162,10 @@ export const journalPages: JournalPage[] = lessons.flatMap((lesson, index) => {
 
 export const totalDays = 63
 export const totalPages = journalPages.length
+
+export function availabilityDay(page: JournalPage) {
+  const weekStart = (page.week - 1) * 7
+  if (page.day === 0) return weekStart
+  if (page.day === 8) return weekStart + 6
+  return weekStart + page.day - 1
+}
