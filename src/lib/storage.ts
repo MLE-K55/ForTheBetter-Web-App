@@ -1,7 +1,8 @@
-import type { ProgressStore, ThemeName } from '../types'
+import type { FontMode, ProgressStore, ThemeName } from '../types'
 
 const PROGRESS_KEY = 'ftb-progress-v1'
 const THEME_KEY = 'ftb-theme-v1'
+const FONT_KEY = 'ftb-font-v1'
 const START_KEY = 'ftb-start-date-v1'
 
 export function loadProgress(): ProgressStore {
@@ -22,6 +23,14 @@ export function loadTheme(): ThemeName {
 
 export function saveTheme(theme: ThemeName) {
   localStorage.setItem(THEME_KEY, theme)
+}
+
+export function loadFontMode(): FontMode {
+  return (localStorage.getItem(FONT_KEY) as FontMode) || 'default'
+}
+
+export function saveFontMode(font: FontMode) {
+  localStorage.setItem(FONT_KEY, font)
 }
 
 export function getStartDate(): string {

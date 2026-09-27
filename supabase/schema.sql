@@ -1,7 +1,8 @@
 create table if not exists public.journal_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
-  theme text not null default 'light' check (theme in ('light', 'dark', 'pastel', 'hacker')),
+  theme text not null default 'light' check (theme in ('light', 'dark', 'pastel', 'hacker', 'gothic', 'zen')),
+  font_mode text not null default 'default' check (font_mode in ('default', 'adhd', 'dyslexic')),
   journey_started_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -34,3 +35,9 @@ create index if not exists journal_entries_user_id_idx on public.journal_entries
 
 grant select, insert, update on public.journal_profiles to authenticated;
 grant select, insert, update, delete on public.journal_entries to authenticated;
+
+alter table public.journal_profiles add column if not exists font_mode text not null default 'default';
+alter table public.journal_profiles drop constraint if exists journal_profiles_theme_check;
+alter table public.journal_profiles add constraint journal_profiles_theme_check check (theme in ('light', 'dark', 'pastel', 'hacker', 'gothic', 'zen'));
+alter table public.journal_profiles drop constraint if exists journal_profiles_font_mode_check;
+alter table public.journal_profiles add constraint journal_profiles_font_mode_check check (font_mode in ('default', 'adhd', 'dyslexic'));

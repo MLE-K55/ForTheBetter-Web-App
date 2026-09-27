@@ -3,15 +3,23 @@ import { BookOpen, CalendarDays, Check, ChevronLeft, ChevronRight, Flame, LockKe
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
 import { availabilityDay, journalPages, totalDays } from './data/journal'
-import { getStartDate, loadProgress, loadTheme, saveProgress, saveTheme } from './lib/storage'
+import { getStartDate, loadFontMode, loadProgress, loadTheme, saveFontMode, saveProgress, saveTheme } from './lib/storage'
 import { cloudConfigured, loadCloudProgress, saveCloudEntry, saveCloudProfile, supabase } from './lib/supabase'
-import type { JournalAnswers, JournalField, ProgressStore, ThemeName } from './types'
+import type { FontMode, JournalAnswers, JournalField, ProgressStore, ThemeName } from './types'
 
 const themes: { id: ThemeName; label: string; hint: string }[] = [
-  { id: 'light', label: 'Light', hint: 'Warm & clear' },
-  { id: 'dark', label: 'Dark', hint: 'Calm & focused' },
+  { id: 'light', label: 'Light', hint: 'Pure white & black' },
+  { id: 'dark', label: 'Dark', hint: 'Purple, grey & black' },
   { id: 'pastel', label: 'Pastel', hint: 'Candy fairy' },
   { id: 'hacker', label: 'Hacker', hint: 'Matrix green' },
+  { id: 'gothic', label: 'Gothic', hint: 'Velvet & candlelight' },
+  { id: 'zen', label: 'Zen', hint: 'Sage & clear water' },
+]
+
+const fontModes: { id: FontMode; label: string; hint: string }[] = [
+  { id: 'default', label: 'Default', hint: 'Theme’s original type' },
+  { id: 'adhd', label: 'ADHD-friendly', hint: 'Lexend · open and steady' },
+  { id: 'dyslexic', label: 'Dyslexia-friendly', hint: 'Atkinson · distinct letters' },
 ]
 
 function isFilled(value: unknown) {
@@ -30,6 +38,7 @@ function Field({ field, value, onChange }: { field: JournalField; value: Journal
 
 function App() {
   const [theme, setTheme] = useState<ThemeName>(loadTheme)
+  const [fontMode, setFontMode] = useState<FontMode>(loadFontMode)
   const [progress, setProgress] = useState<ProgressStore>(loadProgress)
   const [user, setUser] = useState<User | null>(null)
   const [authReady, setAuthReady] = useState(!cloudConfigured)
@@ -49,9 +58,11 @@ function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    document.documentElement.dataset.font = fontMode
     saveTheme(theme)
-    if (user) void saveCloudProfile(user, theme)
-  }, [theme, user])
+    saveFontMode(fontMode)
+    if (user) void saveCloudProfile(user, theme, fontMode)
+  }, [theme, fontMode, user])
 
   useEffect(() => {
     if (!supabase) return
@@ -158,7 +169,7 @@ function App() {
 
     <footer><span>{user ? 'Signed in · Your entries are private to your account.' : 'Prototype mode · Entries save privately on this device.'}</span><button onClick={() => setShowTheme(true)}><Settings2 size={15} /> Appearance</button></footer>
 
-    {showTheme && <div className="modal-backdrop" onClick={() => setShowTheme(false)}><section className="theme-modal" onClick={event => event.stopPropagation()}><div className="section-heading"><div><span className="kicker">Make it yours</span><h2>Choose your vibe</h2></div><button className="icon-button" onClick={() => setShowTheme(false)}>×</button></div><div className="theme-grid">{themes.map(item => <button key={item.id} className={`theme-choice ${theme === item.id ? 'selected' : ''}`} data-preview={item.id} onClick={() => setTheme(item.id)}><span className="theme-swatch"><i /><i /><i /></span><b>{item.label}</b><small>{item.hint}</small>{theme === item.id && <Check size={18} />}</button>)}</div></section></div>}
+    {showTheme && <div className="modal-backdrop" onClick={() => setShowTheme(false)}><section className="theme-modal" onClick={event => event.stopPropagation()}><div className="section-heading"><div><span className="kicker">Make it yours</span><h2>Appearance</h2></div><button className="icon-button" onClick={() => setShowTheme(false)} aria-label="Close appearance">×</button></div><h3 className="option-heading">Color theme</h3><div className="theme-grid">{themes.map(item => <button key={item.id} className={`theme-choice ${theme === item.id ? 'selected' : ''}`} data-preview={item.id} onClick={() => setTheme(item.id)}><span className="theme-swatch"><i /><i /><i /></span><b>{item.label}</b><small>{item.hint}</small>{theme === item.id && <Check size={18} />}</button>)}</div><h3 className="option-heading font-heading">Reading font</h3><div className="font-grid">{fontModes.map(item => <button key={item.id} className={`font-choice ${fontMode === item.id ? 'selected' : ''}`} data-font-preview={item.id} onClick={() => setFontMode(item.id)}><span><b>{item.label}</b><small>{item.hint}</small></span>{fontMode === item.id && <Check size={18} />}</button>)}</div></section></div>}
   </div>
 }
 

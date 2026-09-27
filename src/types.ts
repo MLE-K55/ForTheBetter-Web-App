@@ -1,4 +1,5 @@
-export type ThemeName = 'light' | 'dark' | 'pastel' | 'hacker'
+export type ThemeName = 'light' | 'dark' | 'pastel' | 'hacker' | 'gothic' | 'zen'
+export type FontMode = 'default' | 'adhd' | 'dyslexic'
 
 export type FieldKind = 'text' | 'textarea' | 'date' | 'checklist' | 'rating'
 

@@ -1,5 +1,5 @@
 import { createClient, type User } from '@supabase/supabase-js'
-import type { ProgressStore, SavedEntry, ThemeName } from '../types'
+import type { FontMode, ProgressStore, SavedEntry, ThemeName } from '../types'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -36,12 +36,13 @@ export async function saveCloudEntry(user: User, pageId: string, entry: SavedEnt
   if (error) throw error
 }
 
-export async function saveCloudProfile(user: User, theme: ThemeName) {
+export async function saveCloudProfile(user: User, theme: ThemeName, fontMode: FontMode) {
   if (!supabase) return
   const { error } = await supabase.from('journal_profiles').upsert({
     user_id: user.id,
     display_name: user.user_metadata?.display_name || user.email?.split('@')[0],
     theme,
+    font_mode: fontMode,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
   if (error) throw error
