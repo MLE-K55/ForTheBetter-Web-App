@@ -1,5 +1,21 @@
 import type { JournalPage } from '../types'
 
+const myWhyPage: JournalPage = {
+  id: 'week-1-my-why',
+  week: 1,
+  day: 0,
+  eyebrow: 'Week 1 · Day 1 Foundation',
+  title: 'My Why',
+  intro: 'In order to change—and truly change—you have to have a why. Why do you want to be better? Is it for family, friends, or yourself?',
+  fields: [
+    { id: 'team', label: 'Who is on your team? List the people who support your growth and who you want beside you as you change.', kind: 'textarea', required: true },
+    { id: 'not-become', label: 'Describe the person you do not want to become.', kind: 'textarea', required: true },
+    { id: 'avoid-traits', label: 'What traits, habits, and choices does that person have?', kind: 'textarea', required: true },
+    { id: 'desired-traits', label: 'Now write the opposite. What traits, habits, and choices belong to the person you want to be?', kind: 'textarea', required: true },
+    { id: 'personal-why', label: 'Why are you changing for you?', kind: 'textarea', required: true },
+  ],
+}
+
 const dailyQuotes = [
   'The best way to predict your future is to create it. — Abraham Lincoln',
   'Success is not final, failure is not fatal: It is the courage to continue that counts. — Winston Churchill',
@@ -157,7 +173,7 @@ export const journalPages: JournalPage[] = lessons.flatMap((lesson, index) => {
     ],
   }
 
-  return [lessonPage, ...days, reflection]
+  return index === 0 ? [myWhyPage, lessonPage, ...days, reflection] : [lessonPage, ...days, reflection]
 })
 
 export const totalDays = 63

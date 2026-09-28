@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BookOpen, CalendarDays, Check, ChevronLeft, ChevronRight, Flame, LockKeyhole, Palette, Settings2, Sparkles } from 'lucide-react'
+import { BookOpen, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, LockKeyhole, LogOut, Palette, Settings2, Sparkles } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
 import { availabilityDay, journalPages, totalDays } from './data/journal'
@@ -34,6 +34,38 @@ function Field({ field, value, onChange }: { field: JournalField; value: Journal
     return <fieldset className="field checklist"><legend>{field.label}</legend>{values.map((item, index) => <label key={index} className="check-row"><span className="check-box">{item ? <Check size={14} /> : index + 1}</span><input value={item} placeholder={`Item ${index + 1}`} onChange={e => { const next = [...values]; next[index] = e.target.value; onChange(next) }} /></label>)}</fieldset>
   }
   return <label className="field"><span>{field.label}</span><textarea rows={field.kind === 'text' ? 2 : 4} value={String(value || '')} placeholder="Write honestly…" onChange={e => onChange(e.target.value)} /></label>
+}
+
+function MyWhyFields({ fields, answers, onChange }: { fields: JournalField[]; answers: JournalAnswers; onChange: (fieldId: string, value: JournalAnswers[string]) => void }) {
+  const renderField = (id: string) => {
+    const field = fields.find(item => item.id === id)!
+    return <Field key={id} field={field} value={answers[id]} onChange={value => onChange(id, value)} />
+  }
+
+  return <div className="why-workbook">
+    <section className="why-section">
+      <span className="why-step">01 · Start from within</span>
+      <h3>Change that belongs to you lasts longer</h3>
+      <p>Changing only to earn approval or avoid disappointing someone can create pressure, but it may not hold when that pressure disappears. Research on self-determination suggests that change is more likely to last when your reasons feel chosen and personally meaningful.</p>
+      <p>That does not mean doing it alone. People who respect your choices, encourage you, and help you feel capable can strengthen your own motivation.</p>
+      <a className="research-link" href="https://pubmed.ncbi.nlm.nih.gov/31983293/" target="_blank" rel="noreferrer">Read the research on motivation and supportive relationships <ExternalLink size={15} /></a>
+      {renderField('team')}
+    </section>
+    <section className="why-section">
+      <span className="why-step">02 · Use the warning, then choose a direction</span>
+      <h3>Who do you refuse to become?</h3>
+      <p>Negative motivation can be a warning signal: it shows you what you want to move away from. Name that future honestly, then turn your attention toward the qualities you want to build. A clear direction gives you something meaningful to move toward—not just something to escape.</p>
+      {renderField('not-become')}
+      {renderField('avoid-traits')}
+      {renderField('desired-traits')}
+    </section>
+    <section className="why-section why-finale">
+      <span className="why-step">03 · Make it yours</span>
+      <h3>Your reason has to matter to you</h3>
+      <p>The people on your team can walk beside you, but they cannot choose your life for you. Finish Day 1 by putting your own reason into words.</p>
+      {renderField('personal-why')}
+    </section>
+  </div>
 }
 
 function App() {
@@ -132,7 +164,7 @@ function App() {
   return <div className="app-shell">
     <header className="topbar">
       <button className="brand" onClick={() => setPageIndex(Math.min(pageIndex, maxUnlocked))} aria-label="For The Better home"><span className="brand-mark">FTB</span><span><b>For The Better</b><small>Small steps. Real change.</small></span></button>
-      <div className="header-actions"><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="avatar" aria-label="Account settings" onClick={() => user && supabase?.auth.signOut()}>{user?.email?.slice(0, 2).toUpperCase() || 'FT'}</button></div>
+      <div className="header-actions"><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
     </header>
 
     <main>
@@ -148,11 +180,12 @@ function App() {
         <div className="section-heading"><div><span className="kicker">Your path</span><h2>Nine weeks, one day at a time</h2></div><Sparkles /></div>
         {Array.from({ length: 9 }, (_, weekIndex) => {
           const weekPages = journalPages.map((item, index) => ({ item, index })).filter(({ item }) => item.week === weekIndex + 1)
+          const weekLesson = weekPages.find(({ item }) => item.id === `week-${weekIndex + 1}-lesson`)?.item || weekPages[0].item
           const done = weekPages.filter(({ item }) => progress[item.id]?.completed).length
           const unlocked = weekPages[0].index <= maxUnlocked
           return <article className={`week-card ${unlocked ? '' : 'locked'}`} key={weekIndex}>
             <button disabled={!unlocked} onClick={() => goToPage(weekPages.find(({ index }) => index <= maxUnlocked && !progress[journalPages[index].id]?.completed)?.index ?? weekPages[0].index)}>
-              <span className="week-number">{unlocked ? weekIndex + 1 : <LockKeyhole size={18} />}</span><span><small>Week {weekIndex + 1}</small><b>{weekPages[0].item.title}</b><em>{done} of {weekPages.length} complete</em></span><ChevronRight size={20} />
+              <span className="week-number">{unlocked ? weekIndex + 1 : <LockKeyhole size={18} />}</span><span><small>Week {weekIndex + 1}</small><b>{weekLesson.title}</b><em>{done} of {weekPages.length} complete</em></span><ChevronRight size={20} />
             </button>
           </article>
         })}
@@ -161,7 +194,7 @@ function App() {
         {page.sourceStatus === 'draft' && <p className="draft-note">This lesson’s heading is from the original book. Its prompts are a working draft because the source PDF repeats earlier text.</p>}
         {page.quote && <blockquote>“{page.quote}”</blockquote>}
         {page.intro && <p className="intro">{page.intro}</p>}
-        <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} />)}</div>
+        {page.id === 'week-1-my-why' ? <MyWhyFields fields={page.fields} answers={answers} onChange={updateAnswer} /> : <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} />)}</div>}
         <div className="completion-note"><LockKeyhole size={17} /><span>{entry?.completed && nextPageIsTimeLocked ? `Today is complete. Your next page unlocks ${nextUnlockDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'Complete every required response to unlock the next page. Each new daily entry opens on its scheduled day.'}</span></div>
         <div className="page-actions"><button className="secondary" disabled={pageIndex === 0} onClick={() => setPageIndex(pageIndex - 1)}><ChevronLeft size={18} /> Back</button><button className="primary" disabled={!canComplete || Boolean(entry?.completed && nextPageIsTimeLocked)} onClick={completePage}>{entry?.completed && nextPageIsTimeLocked ? 'Saved for today' : entry?.completed ? 'Continue' : 'Complete page'} <ChevronRight size={18} /></button></div>
       </article>}
