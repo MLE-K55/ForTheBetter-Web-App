@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { BookOpen, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, LockKeyhole, LogOut, Palette, Settings2, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, LockKeyhole, LogOut, Palette, Settings2, Sparkles } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
+import BrainDump from './components/BrainDump'
 import { availabilityDay, journalPages, totalDays } from './data/journal'
 import { getStartDate, loadFontMode, loadProgress, loadTheme, saveFontMode, saveProgress, saveTheme } from './lib/storage'
 import { cloudConfigured, loadCloudProgress, saveCloudEntry, saveCloudProfile, supabase } from './lib/supabase'
@@ -76,7 +77,7 @@ function App() {
   const [authReady, setAuthReady] = useState(!cloudConfigured)
   const [pageIndex, setPageIndex] = useState(0)
   const [showTheme, setShowTheme] = useState(false)
-  const [showJourney, setShowJourney] = useState(false)
+  const [activeTab, setActiveTab] = useState<'journal' | 'brain' | 'journey'>('journal')
   const startDate = useMemo(getStartDate, [])
   const page = journalPages[pageIndex]
   const entry = progress[page.id]
@@ -157,9 +158,19 @@ function App() {
   const goToPage = (index: number) => {
     if (index <= maxUnlocked) {
       setPageIndex(index)
-      setShowJourney(false)
+      setActiveTab('journal')
     }
   }
+
+  const saveBrainDump = useCallback((brainAnswers: JournalAnswers) => {
+    setProgress(previous => {
+      const nextEntry = { answers: brainAnswers, completed: false, updatedAt: new Date().toISOString() }
+      const next = { ...previous, 'brain-dump': nextEntry }
+      saveProgress(next)
+      if (user) void saveCloudEntry(user, 'brain-dump', nextEntry)
+      return next
+    })
+  }, [user])
 
   return <div className="app-shell">
     <header className="topbar">
@@ -174,9 +185,9 @@ function App() {
         <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
       </section>
 
-      <nav className="section-tabs" aria-label="Journal navigation"><button className={!showJourney ? 'active' : ''} onClick={() => setShowJourney(false)}><BookOpen size={18} /> Journal</button><button className={showJourney ? 'active' : ''} onClick={() => setShowJourney(true)}><CalendarDays size={18} /> Journey</button></nav>
+      <nav className="section-tabs" aria-label="Journal navigation"><button className={activeTab === 'journal' ? 'active' : ''} onClick={() => setActiveTab('journal')}><BookOpen size={18} /> Journal</button><button className={activeTab === 'brain' ? 'active' : ''} onClick={() => setActiveTab('brain')}><Brain size={18} /> Brain Dump</button><button className={activeTab === 'journey' ? 'active' : ''} onClick={() => setActiveTab('journey')}><CalendarDays size={18} /> Journey</button></nav>
 
-      {showJourney ? <section className="journey-panel">
+      {activeTab === 'brain' ? <BrainDump entry={progress['brain-dump']} onSave={saveBrainDump} /> : activeTab === 'journey' ? <section className="journey-panel">
         <div className="section-heading"><div><span className="kicker">Your path</span><h2>Nine weeks, one day at a time</h2></div><Sparkles /></div>
         {Array.from({ length: 9 }, (_, weekIndex) => {
           const weekPages = journalPages.map((item, index) => ({ item, index })).filter(({ item }) => item.week === weekIndex + 1)

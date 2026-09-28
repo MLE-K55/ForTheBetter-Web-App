@@ -21,6 +21,8 @@ pnpm dev
 
 Copy `.env.example` to `.env.local` and add Supabase project values when the hosted backend is ready.
 
+To enable optional AI organization for Brain Dump, create a Gemini API key in Google AI Studio and add it to Vercel as the server-only `GEMINI_API_KEY` environment variable. Redeploy after adding it. The on-device organizer works without a key.
+
 ## Source material
 
 The original PDFs and PNG archives remain local source material. They are intentionally excluded from the first application commit until the final asset strategy is decided.
