@@ -6,7 +6,7 @@ const myWhyPage: JournalPage = {
   day: 0,
   eyebrow: 'Week 1 · Day 1 Foundation',
   title: 'My Why',
-  intro: 'In order to change—and truly change—you have to have a why. Why do you want to be better? Is it for family, friends, or yourself?',
+  intro: 'In order to change and truly change, you have to have a why. Why do you want to be better? Is it for family, friends, or yourself?',
   fields: [
     { id: 'team', label: 'Who is on your team? List the people who support your growth and who you want beside you as you change.', kind: 'textarea', required: true },
     { id: 'not-become', label: 'Describe the person you do not want to become.', kind: 'textarea', required: true },
@@ -17,19 +17,19 @@ const myWhyPage: JournalPage = {
 }
 
 const dailyQuotes = [
-  'The best way to predict your future is to create it. — Abraham Lincoln',
-  'Success is not final, failure is not fatal: It is the courage to continue that counts. — Winston Churchill',
-  'It’s not the size of the dog in the fight, it’s the size of the fight in the dog. — Mark Twain',
-  'You must expect great things of yourself before you can do them. — Michael Jordan',
-  'Do not wait to strike till the iron is hot, but make it hot by striking. — William Butler Yeats',
-  'The only limit to our realization of tomorrow is our doubts of today. — Franklin D. Roosevelt',
-  'A man who stands for nothing will fall for anything. — Malcolm X',
+  'The best way to predict your future is to create it. Abraham Lincoln',
+  'Success is not final, failure is not fatal: It is the courage to continue that counts. Winston Churchill',
+  'It’s not the size of the dog in the fight, it’s the size of the fight in the dog. Mark Twain',
+  'You must expect great things of yourself before you can do them. Michael Jordan',
+  'Do not wait to strike till the iron is hot, but make it hot by striking. William Butler Yeats',
+  'The only limit to our realization of tomorrow is our doubts of today. Franklin D. Roosevelt',
+  'A man who stands for nothing will fall for anything. Malcolm X',
 ]
 
 const lessons = [
   {
     title: 'Eliminate Waste',
-    intro: 'Before you can build something great, you need to clear out what’s weighing you down. This week is about getting rid of the habits, distractions, and inefficiencies that are holding you back from becoming the person you want to be.',
+    intro: 'Before you can get better, you need to see what is getting in your way. This week is about finding the habits, distractions, and wasted time that keep holding you back.',
     fields: [
       ['waste', 'List three major areas in your life where you’re wasting time, energy, or money. Be specific.'],
       ['impact', 'For each area, how is it negatively affecting your progress?'],
@@ -40,7 +40,7 @@ const lessons = [
   },
   {
     title: 'Optimize Your Environment',
-    intro: 'Now that you’ve cleared the clutter, it’s time to build an environment that drives success. Set up your space, structure your time, and put yourself in a position where success becomes inevitable.',
+    intro: 'Your surroundings affect what you do. This week, set up your space and your time so it is easier to make better choices.',
     fields: [
       ['space', 'What area do you spend the most time in? What helps you focus there?'],
       ['distraction', 'What constantly distracts you, and how can you remove or minimize it?'],
@@ -51,7 +51,7 @@ const lessons = [
   },
   {
     title: 'Mastering Focus & Eliminating Distractions',
-    intro: 'The ability to focus is one of the rarest and most powerful skills you can develop. This week, sharpen your focus and take back control of your time.',
+    intro: 'It is hard to make progress when everything is pulling at your attention. This week, figure out what distracts you and take back control of your time.',
     fields: [
       ['distractions', 'What are the top three things that pull your attention away from important tasks?'],
       ['hours', 'When are your peak focus hours? When is your free time?'],
@@ -61,17 +61,17 @@ const lessons = [
   },
   {
     title: 'Powerful Morning Routine',
-    intro: 'How you start your morning determines the momentum for the rest of your day. Design a routine that works for you and puts you in control of your day.',
+    intro: 'How you start the morning can affect the rest of your day. Build a routine that is realistic, simple, and something you can actually keep doing.',
     fields: [
       ['wake', 'What time will you wake up?'],
-      ['habits', 'Choose at least three non-negotiable morning habits.'],
+      ['habits', 'Choose at least three morning habits you will not skip.'],
       ['routine', 'Write your ideal morning routine in the order you’ll complete it. Keep it realistic and repeatable.'],
       ['commitment', 'Commit to following your morning routine for seven days. What will keep you accountable?'],
     ],
   },
   {
     title: 'Strong Bedtime Routine',
-    intro: 'A solid bedtime routine sets you up for success through quality sleep, mental clarity, and physical recovery. Consistency is the foundation.',
+    intro: 'A good night starts before you get into bed. Build a simple routine that helps you slow down, get enough sleep, and feel ready for tomorrow.',
     fields: [
       ['wake', 'What time do you need to wake up?'],
       ['sleep', 'How many hours of sleep do you need, and what time must you be asleep?'],
@@ -83,7 +83,7 @@ const lessons = [
   },
   {
     title: 'Budgeting & Accountability',
-    intro: 'Lasting financial success is the result of consistent, daily choices and discipline. Small improvements made every day lead to big results over time.',
+    intro: 'Money gets easier to manage when you know where it is going. Be honest about what comes in, what goes out, and what you can change.',
     fields: [
       ['income', 'What is your total monthly income?'],
       ['expenses', 'What are your estimated total monthly expenses?'],
@@ -94,7 +94,7 @@ const lessons = [
   },
   {
     title: 'Reflection & Course Correction',
-    intro: 'Growth happens when you analyze, adjust, and improve. Review your progress, identify patterns, and make the changes that move you forward.',
+    intro: 'Look back at what has happened so far. Keep what is working, be honest about what is not, and decide what you need to change.',
     draft: true,
     fields: [
       ['wins', 'What have been your strongest wins so far?'],
@@ -105,7 +105,7 @@ const lessons = [
   },
   {
     title: 'Pushing Beyond Your Comfort Zone',
-    intro: 'Discomfort is where real growth happens. Choose a meaningful challenge and take deliberate action beyond what feels familiar.',
+    intro: 'Growth can feel uncomfortable. Pick something you have been avoiding and take one real step toward it.',
     draft: true,
     fields: [
       ['avoidance', 'What have you been avoiding because it feels uncomfortable?'],
@@ -116,7 +116,7 @@ const lessons = [
   },
   {
     title: 'Teach & Lead Others',
-    intro: 'Teaching reinforces what you have learned. Share your growth, lead by example, and help someone else take a step forward.',
+    intro: 'One way to prove that you have learned something is to live it and share it. Think about who you can help and how you can lead by example.',
     draft: true,
     fields: [
       ['lesson', 'What lesson from these nine weeks matters most to you?'],
@@ -162,7 +162,7 @@ export const journalPages: JournalPage[] = lessons.flatMap((lesson, index) => {
     day: 8,
     eyebrow: `Week ${week} · Reflection`,
     title: 'Take Ownership, Make Progress',
-    intro: 'Real growth comes from honest evaluation—not beating yourself up, but learning and improving week after week.',
+    intro: 'Real growth comes from being honest with yourself. Do not beat yourself up. Learn from the week and keep improving.',
     fields: [
       { id: 'wins', label: 'What were your biggest wins this week?', kind: 'textarea', required: true },
       { id: 'challenges', label: 'What were your biggest challenges or setbacks?', kind: 'textarea', required: true },

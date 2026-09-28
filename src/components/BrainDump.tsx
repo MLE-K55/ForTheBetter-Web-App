@@ -18,12 +18,12 @@ function organizeOnDevice(text: string, mode: OrganizeMode): OrganizedResult {
   }
   const actionPattern = /\b(call|email|text|ask|buy|bring|book|clean|complete|contact|do|finish|fix|get|make|pay|plan|remember|schedule|send|start|submit|talk|update|write)\b/i
   const likelyTasks = lines.filter(line => actionPattern.test(line))
-  return { content: likelyTasks.length ? 'Here are the actionable items I found.' : 'I did not find clear action items, so I turned each separate thought into a possible next step.', tasks: (likelyTasks.length ? likelyTasks : lines).slice(0, 12), source: 'device' }
+  return { content: likelyTasks.length ? 'Here are the things you may need to do.' : 'I did not see any clear tasks, so I listed each thought in case you want to do something with it.', tasks: (likelyTasks.length ? likelyTasks : lines).slice(0, 12), source: 'device' }
 }
 
 async function organizeWithAI(text: string, mode: OrganizeMode): Promise<OrganizedResult> {
   const session = (await supabase?.auth.getSession())?.data.session
-  if (!session) throw new Error('AI organization requires a signed-in account.')
+  if (!session) throw new Error('You need to be signed in to use AI.')
   const response = await fetch('/api/organize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
@@ -76,14 +76,14 @@ export default function BrainDump({ entry, onSave }: { entry?: SavedEntry; onSav
   }
 
   return <section className="brain-panel">
-    <div className="brain-heading"><div><span className="kicker"><Brain size={15} /> Clear some space</span><h2>Brain Dump</h2><p>Put every thought here—unfinished, out of order, and exactly as it comes. There is no wrong way to write it.</p></div><span className="autosave-badge"><Check size={13} /> Autosaved</span></div>
+    <div className="brain-heading"><div><span className="kicker"><Brain size={15} /> Get it out of your head</span><h2>Brain Dump</h2><p>Write whatever is on your mind. It does not need to be neat or make sense. Just get it all out.</p></div><span className="autosave-badge"><Check size={13} /> Saved</span></div>
     <label className="brain-input"><span>What is taking up space in your head?</span><textarea rows={13} value={draft} maxLength={12000} placeholder="Appointments, worries, ideas, things to remember, conversations to have… dump it all here." onChange={event => setDraft(event.target.value)} /><small>{draft.length.toLocaleString()} / 12,000 characters</small></label>
     <div className="organize-card">
-      <div><span className="kicker"><Sparkles size={14} /> Make sense of it</span><h3>Organize your thoughts</h3><p>Choose a private, basic organizer or let AI find the main ideas and possible next steps.</p></div>
+      <div><span className="kicker"><Sparkles size={14} /> Sort it out</span><h3>Organize your thoughts</h3><p>You can organize it on your device or let AI give you a summary or a list of things to do.</p></div>
       <div className="local-actions"><button disabled={!draft.trim() || Boolean(loading)} onClick={() => organize('summary', false)}>Quick summary on this device</button><button disabled={!draft.trim() || Boolean(loading)} onClick={() => organize('tasks', false)}><ListTodo size={16} /> Find tasks on this device</button></div>
-      <label className="ai-consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span><b>Use Google Gemini for this request</b><small>Your brain dump will be sent to Google. The Gemini free tier may use submitted content to improve products, so do not include information you do not want to share.</small></span></label>
-      <div className="ai-actions"><button disabled={!draft.trim() || !consent || Boolean(loading)} onClick={() => organize('summary', true)}>{loading === 'summary' ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />} AI summary</button><button disabled={!draft.trim() || !consent || Boolean(loading)} onClick={() => organize('tasks', true)}>{loading === 'tasks' ? <LoaderCircle className="spin" size={17} /> : <ListTodo size={17} />} AI to-do list</button></div>
-      <p className="privacy-line"><ShieldCheck size={15} /> Nothing is sent to AI until you check the box and choose an AI action.</p>
+      <label className="ai-consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span><b>Use Google Gemini for this</b><small>This sends your brain dump to Google. Google may use information sent through the free version to improve its products. Do not include anything you do not want to share.</small></span></label>
+      <div className="ai-actions"><button disabled={!draft.trim() || !consent || Boolean(loading)} onClick={() => organize('summary', true)}>{loading === 'summary' ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />} AI summary</button><button disabled={!draft.trim() || !consent || Boolean(loading)} onClick={() => organize('tasks', true)}>{loading === 'tasks' ? <LoaderCircle className="spin" size={17} /> : <ListTodo size={17} />} AI task list</button></div>
+      <p className="privacy-line"><ShieldCheck size={15} /> Nothing goes to AI unless you check the box and choose one of the AI buttons.</p>
       {notice && <p className="brain-notice">{notice}</p>}
     </div>
     {(content || tasks.length > 0) && <div className="organized-card">

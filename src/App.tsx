@@ -19,8 +19,8 @@ const themes: { id: ThemeName; label: string; hint: string }[] = [
 
 const fontModes: { id: FontMode; label: string; hint: string }[] = [
   { id: 'default', label: 'Default', hint: 'Theme’s original type' },
-  { id: 'adhd', label: 'ADHD-friendly', hint: 'Lexend · open and steady' },
-  { id: 'dyslexic', label: 'Dyslexia-friendly', hint: 'Atkinson · distinct letters' },
+  { id: 'adhd', label: 'ADHD friendly', hint: 'Lexend · open and steady' },
+  { id: 'dyslexic', label: 'Dyslexia friendly', hint: 'Atkinson · distinct letters' },
 ]
 
 function isFilled(value: unknown) {
@@ -46,24 +46,24 @@ function MyWhyFields({ fields, answers, onChange }: { fields: JournalField[]; an
   return <div className="why-workbook">
     <section className="why-section">
       <span className="why-step">01 · Start from within</span>
-      <h3>Change that belongs to you lasts longer</h3>
-      <p>Changing only to earn approval or avoid disappointing someone can create pressure, but it may not hold when that pressure disappears. Research on self-determination suggests that change is more likely to last when your reasons feel chosen and personally meaningful.</p>
-      <p>That does not mean doing it alone. People who respect your choices, encourage you, and help you feel capable can strengthen your own motivation.</p>
-      <a className="research-link" href="https://pubmed.ncbi.nlm.nih.gov/31983293/" target="_blank" rel="noreferrer">Read the research on motivation and supportive relationships <ExternalLink size={15} /></a>
+      <h3>This change has to be for you</h3>
+      <p>If you are only changing to make someone else happy, it can be hard to stick with it once that pressure is gone. Research shows that change is more likely to last when the reason actually matters to you.</p>
+      <p>You do not have to do it alone. The right people can support you, push you, and help you keep going. They just cannot be the only reason you are doing it.</p>
+      <a className="research-link" href="https://pubmed.ncbi.nlm.nih.gov/31983293/" target="_blank" rel="noreferrer">Read more about the research <ExternalLink size={15} /></a>
       {renderField('team')}
     </section>
     <section className="why-section">
-      <span className="why-step">02 · Use the warning, then choose a direction</span>
+      <span className="why-step">02 · Know what you are moving away from</span>
       <h3>Who do you refuse to become?</h3>
-      <p>Negative motivation can be a warning signal: it shows you what you want to move away from. Name that future honestly, then turn your attention toward the qualities you want to build. A clear direction gives you something meaningful to move toward—not just something to escape.</p>
+      <p>Sometimes knowing who you do not want to become can motivate you. Be honest about that person and their traits. Then write the opposite so you know what kind of person you are trying to become.</p>
       {renderField('not-become')}
       {renderField('avoid-traits')}
       {renderField('desired-traits')}
     </section>
     <section className="why-section why-finale">
       <span className="why-step">03 · Make it yours</span>
-      <h3>Your reason has to matter to you</h3>
-      <p>The people on your team can walk beside you, but they cannot choose your life for you. Finish Day 1 by putting your own reason into words.</p>
+      <h3>Now make it personal</h3>
+      <p>Your team can help you, but they cannot make the change for you. Finish Day 1 by writing why this matters to you.</p>
       {renderField('personal-why')}
     </section>
   </div>
@@ -180,7 +180,7 @@ function App() {
 
     <main>
       <section className="progress-card">
-        <div><span className="kicker"><Flame size={15} /> 9-week journey</span><h1>Day {Math.min(currentDay, totalDays)} of {totalDays}</h1><p>Started {new Date(`${startDate}T12:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
+        <div><span className="kicker"><Flame size={15} /> 9 week journey</span><h1>Day {Math.min(currentDay, totalDays)} of {totalDays}</h1><p>Started {new Date(`${startDate}T12:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
         <div className="progress-ring" style={{ '--progress': `${percent * 3.6}deg` } as React.CSSProperties}><span>{percent}%</span></div>
         <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
       </section>
@@ -202,11 +202,11 @@ function App() {
         })}
       </section> : <article className="journal-card">
         <div className="journal-heading"><div><span className="kicker">{page.eyebrow}</span><h2>{page.title}</h2></div>{entry?.completed && <span className="done-badge"><Check size={15} /> Complete</span>}</div>
-        {page.sourceStatus === 'draft' && <p className="draft-note">This lesson’s heading is from the original book. Its prompts are a working draft because the source PDF repeats earlier text.</p>}
+        {page.sourceStatus === 'draft' && <p className="draft-note">This heading came from the original book. These questions are still a draft because the source PDF repeats earlier pages.</p>}
         {page.quote && <blockquote>“{page.quote}”</blockquote>}
         {page.intro && <p className="intro">{page.intro}</p>}
         {page.id === 'week-1-my-why' ? <MyWhyFields fields={page.fields} answers={answers} onChange={updateAnswer} /> : <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} />)}</div>}
-        <div className="completion-note"><LockKeyhole size={17} /><span>{entry?.completed && nextPageIsTimeLocked ? `Today is complete. Your next page unlocks ${nextUnlockDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'Complete every required response to unlock the next page. Each new daily entry opens on its scheduled day.'}</span></div>
+        <div className="completion-note"><LockKeyhole size={17} /><span>{entry?.completed && nextPageIsTimeLocked ? `You are done for today. Your next page opens ${nextUnlockDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'Answer every required question to unlock the next page. New daily entries open on their scheduled day.'}</span></div>
         <div className="page-actions"><button className="secondary" disabled={pageIndex === 0} onClick={() => setPageIndex(pageIndex - 1)}><ChevronLeft size={18} /> Back</button><button className="primary" disabled={!canComplete || Boolean(entry?.completed && nextPageIsTimeLocked)} onClick={completePage}>{entry?.completed && nextPageIsTimeLocked ? 'Saved for today' : entry?.completed ? 'Continue' : 'Complete page'} <ChevronRight size={18} /></button></div>
       </article>}
     </main>

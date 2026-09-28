@@ -40,8 +40,8 @@ export default async function handler(request, response) {
   if (!apiKey) return json(response, 503, { error: 'AI has not been connected yet.' })
 
   const instruction = mode === 'summary'
-    ? 'Summarize the main themes with warmth and clarity in 2-4 concise sentences. Return no tasks unless the text contains an unmistakable commitment.'
-    : 'Extract only genuine, concrete action items. Rewrite each as a short verb-led task. Do not turn feelings, worries, or observations into tasks.'
+    ? 'Summarize the main themes in 2 to 4 clear sentences. Return no tasks unless the person clearly said they need to do something.'
+    : 'Pull out only real things the person needs to do. Start each task with a verb. Do not turn feelings, worries, or observations into tasks.'
   const prompt = `You organize a private journal brain dump without judging, diagnosing, giving therapy, or inventing details. ${instruction}\n\nReturn valid JSON only with this exact shape: {"content":"brief helpful overview","tasks":["task"]}.\n\nBRAIN DUMP:\n${text}`
 
   try {

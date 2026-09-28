@@ -27,11 +27,11 @@ export default function AuthScreen() {
       <span className="auth-logo"><BookHeart size={30} /></span>
       <span className="kicker">A private space to grow</span>
       <h1>For The Better</h1>
-      <p>Your nine-week journal. Your honest answers. Your progress—visible only to you.</p>
-      {sent ? <div className="email-sent"><Mail /><div><b>Check your email</b><span>We sent a secure sign-in link to {email}.</span></div></div> : <form onSubmit={signIn}>
+      <p>Your nine week journal. Your honest answers. Your progress is only visible to you.</p>
+      {sent ? <div className="email-sent"><Mail /><div><b>Check your email</b><span>We sent a secure sign in link to {email}.</span></div></div> : <form onSubmit={signIn}>
         <label className="field"><span>Email address</span><div className="input-with-icon"><Mail size={18} /><input type="email" autoComplete="email" required value={email} placeholder="you@example.com" onChange={event => setEmail(event.target.value)} /></div></label>
         {error && <p className="form-error">{error}</p>}
-        <button className="primary auth-submit" disabled={busy}>{busy ? 'Sending…' : 'Send secure sign-in link'} <ArrowRight size={18} /></button>
+        <button className="primary auth-submit" disabled={busy}>{busy ? 'Sending…' : 'Send secure sign in link'} <ArrowRight size={18} /></button>
       </form>}
       <div className="privacy-points"><span><ShieldCheck size={17} /> Private by design</span><span><KeyRound size={17} /> No password to remember</span></div>
     </section>

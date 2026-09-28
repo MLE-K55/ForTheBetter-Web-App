@@ -10,7 +10,7 @@ export default defineConfig({
       manifest: {
         name: 'For The Better',
         short_name: 'For Better',
-        description: 'A private nine-week Kaizen journal.',
+        description: 'A private nine week Kaizen journal.',
         theme_color: '#ef8e8e',
         background_color: '#fff8f4',
         display: 'standalone',
