@@ -174,7 +174,7 @@ function App() {
 
   return <div className="app-shell">
     <header className="topbar">
-      <button className="brand" onClick={() => setPageIndex(Math.min(pageIndex, maxUnlocked))} aria-label="For The Better home"><span className="brand-mark">FTB</span><span><b>For The Better</b><small>Small steps. Real change.</small></span></button>
+      <button className="brand" onClick={() => setPageIndex(Math.min(pageIndex, maxUnlocked))} aria-label="For The Better home"><img className="brand-logo" src={`/logos/ftb-${theme}.png`} alt="" /><span><b>For The Better</b><small>Small steps. Real change.</small></span></button>
       <div className="header-actions"><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
     </header>
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, BookHeart, KeyRound, Mail, ShieldCheck } from 'lucide-react'
+import { ArrowRight, KeyRound, Mail, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function AuthScreen() {
@@ -24,7 +24,7 @@ export default function AuthScreen() {
 
   return <main className="auth-shell">
     <section className="auth-card">
-      <span className="auth-logo"><BookHeart size={30} /></span>
+      <span className="auth-logo"><img src="/logos/ftb-pastel.png" alt="For The Better logo" /></span>
       <span className="kicker">A private space to grow</span>
       <h1>For The Better</h1>
       <p>Your nine week journal. Your honest answers. Your progress is only visible to you.</p>
