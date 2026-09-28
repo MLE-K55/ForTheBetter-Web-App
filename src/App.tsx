@@ -63,7 +63,7 @@ function MyWhyFields({ fields, answers, onChange }: { fields: JournalField[]; an
     <section className="why-section why-finale">
       <span className="why-step">03 · Make it yours</span>
       <h3>Now make it personal</h3>
-      <p>Your team can help you, but they cannot make the change for you. Finish Day 1 by writing why this matters to you.</p>
+      <p>The people on your team can walk beside you, but they cannot choose your life for you. The only person who can change you is you. The only person truly stopping you, is also you. In your own words why do you want to change? Before you begin to write set a timer for 3 minutes, close your eyes, and truly reflect and why you want to change. Envision yourself as the person you wish to be, why do you want to be them?</p>
       {renderField('personal-why')}
     </section>
   </div>
