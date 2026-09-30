@@ -75,6 +75,11 @@ function App() {
   const [progress, setProgress] = useState<ProgressStore>(loadProgress)
   const [user, setUser] = useState<User | null>(null)
   const [authReady, setAuthReady] = useState(!cloudConfigured)
+  const [authError, setAuthError] = useState('')
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState('')
+  const [retry, setRetry] = useState(0)
+  const [saveError, setSaveError] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
   const [showTheme, setShowTheme] = useState(false)
   const [activeTab, setActiveTab] = useState<'journal' | 'brain' | 'journey'>('journal')
@@ -94,26 +99,72 @@ function App() {
     document.documentElement.dataset.font = fontMode
     saveTheme(theme)
     saveFontMode(fontMode)
-    if (user) void saveCloudProfile(user, theme, fontMode)
+    if (user) void saveCloudProfile(user, theme, fontMode).catch(() => {
+      setSaveError('Your appearance could not sync. Check your connection before leaving.')
+    })
   }, [theme, fontMode, user])
 
   useEffect(() => {
     if (!supabase) return
-    void supabase.auth.getSession().then(async ({ data }) => {
-      setUser(data.session?.user || null)
-      if (data.session?.user) setProgress(await loadCloudProgress(data.session.user))
+    let active = true
+    let receivedAuthEvent = false
+    setAuthError('')
+    const timeout = window.setTimeout(() => {
+      if (active) setAuthError('Sign in is taking longer than expected. Check your connection and try again.')
+    }, 15000)
+    // Never await a Supabase request inside its auth callback: the auth lock
+    // remains held until the callback returns. Load entries in a separate effect.
+    const applyUser = (nextUser: User | null) => {
+      if (!active) return
+      window.clearTimeout(timeout)
+      setUser(previous => previous?.id === nextUser?.id ? previous : nextUser)
+      setAuthError('')
       setAuthReady(true)
+    }
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      receivedAuthEvent = true
+      applyUser(session?.user || null)
     })
-    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user || null)
-      if (session?.user) setProgress(await loadCloudProgress(session.user))
-      setAuthReady(true)
+    void supabase.auth.getSession().then(({ data: sessionData, error }) => {
+      if (!active || receivedAuthEvent) return
+      if (error) throw error
+      applyUser(sessionData.session?.user || null)
+    }).catch(() => {
+      if (!active || receivedAuthEvent) return
+      window.clearTimeout(timeout)
+      setAuthError('We could not restore your sign in. Check your connection and try again.')
     })
-    return () => data.subscription.unsubscribe()
+    return () => {
+      active = false
+      window.clearTimeout(timeout)
+      data.subscription.unsubscribe()
+    }
   }, [])
 
-  if (!authReady) return <div className="loading-screen"><span className="brand-mark">FTB</span><p>Opening your private journal…</p></div>
-  if (cloudConfigured && !user) return <AuthScreen />
+  useEffect(() => {
+    if (!cloudConfigured) return
+    setProgress({})
+    setLoadedUserId(null)
+    setLoadError('')
+    setSaveError('')
+    setPageIndex(0)
+    setActiveTab('journal')
+    if (!user) return
+    let active = true
+    const timeout = window.setTimeout(() => {
+      if (!active) return
+      active = false
+      setLoadError('Your saved journal is taking longer than expected to load. Please try again.')
+    }, 15000)
+    void loadCloudProgress(user).then(entries => {
+      if (!active) return
+      setProgress(entries)
+      setLoadedUserId(user.id)
+    }).catch(() => {
+      if (active) setLoadError('We could not load your saved journal. Check your connection and try again.')
+    }).finally(() => window.clearTimeout(timeout))
+    return () => { active = false; window.clearTimeout(timeout) }
+  }, [user, retry])
 
   const updateAnswer = (fieldId: string, value: JournalAnswers[string]) => {
     setProgress(previous => {
@@ -126,8 +177,8 @@ function App() {
           updatedAt: new Date().toISOString(),
         },
       }
-      saveProgress(next)
-      if (user) void saveCloudEntry(user, page.id, next[page.id])
+      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
+      if (user) void saveCloudEntry(user, page.id, next[page.id]).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
       return next
     })
   }
@@ -148,8 +199,8 @@ function App() {
           updatedAt: new Date().toISOString(),
         },
       }
-      saveProgress(next)
-      if (user) void saveCloudEntry(user, page.id, next[page.id])
+      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
+      if (user) void saveCloudEntry(user, page.id, next[page.id]).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
       return next
     })
     if (pageIndex < journalPages.length - 1 && pageIndex + 1 <= timeUnlockedIndex) setPageIndex(pageIndex + 1)
@@ -166,11 +217,18 @@ function App() {
     setProgress(previous => {
       const nextEntry = { answers: brainAnswers, completed: false, updatedAt: new Date().toISOString() }
       const next = { ...previous, 'brain-dump': nextEntry }
-      saveProgress(next)
-      if (user) void saveCloudEntry(user, 'brain-dump', nextEntry)
+      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
+      if (user) void saveCloudEntry(user, 'brain-dump', nextEntry).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
       return next
     })
   }, [user])
+
+  // All hooks above must run on login, loading, and journal renders alike.
+  if (authError) return <main className="loading-screen" role="alert"><p>{authError}</p><button className="primary" onClick={() => window.location.reload()}>Try again</button></main>
+  if (!authReady) return <div className="loading-screen"><span className="brand-mark">FTB</span><p>Opening your private journal…</p></div>
+  if (cloudConfigured && !user) return <AuthScreen />
+  if (loadError) return <main className="loading-screen" role="alert"><p>{loadError}</p><button className="primary" onClick={() => setRetry(value => value + 1)}>Try again</button></main>
+  if (user && loadedUserId !== user.id) return <div className="loading-screen"><p>Loading your saved journal…</p></div>
 
   return <div className="app-shell">
     <header className="topbar">
@@ -179,6 +237,7 @@ function App() {
     </header>
 
     <main>
+      {saveError && <p className="form-error" role="alert">{saveError}</p>}
       <section className="progress-card">
         <div><span className="kicker"><Flame size={15} /> 9 week journey</span><h1>Day {Math.min(currentDay, totalDays)} of {totalDays}</h1><p>Started {new Date(`${startDate}T12:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
         <div className="progress-ring" style={{ '--progress': `${percent * 3.6}deg` } as React.CSSProperties}><span>{percent}%</span></div>

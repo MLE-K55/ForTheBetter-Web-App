@@ -13,13 +13,18 @@ export default function AuthScreen() {
     if (!supabase || !email) return
     setBusy(true)
     setError('')
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    })
-    setBusy(false)
-    if (signInError) setError(signInError.message)
-    else setSent(true)
+    try {
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin },
+      })
+      if (signInError) setError(signInError.message)
+      else setSent(true)
+    } catch {
+      setError('We could not send your sign in link. Check your connection and try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return <main className="auth-shell">
