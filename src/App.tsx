@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, ListTodo, LockKeyhole, LogOut, Palette, Settings2, Sparkles, Sprout } from 'lucide-react'
+import { Bell, BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, ListTodo, LockKeyhole, LogOut, Palette, Settings2, Sparkles, Sprout } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
 import BrainDump from './components/BrainDump'
 import TodoLists from './components/TodoLists'
+import EmailReminders from './components/EmailReminders'
+import ReminderSignIn from './components/ReminderSignIn'
 import { readTodos, type TodoStore } from './lib/todos'
 import { availabilityDay, journalPages, totalDays } from './data/journal'
 import { getStartDate, loadFontMode, loadProgress, loadTheme, saveFontMode, saveProgress, saveTheme } from './lib/storage'
@@ -84,6 +86,8 @@ function App() {
   const [saveError, setSaveError] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
   const [showTheme, setShowTheme] = useState(false)
+  const [showReminders, setShowReminders] = useState(false)
+  const [reminderToken, setReminderToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('reminder_token') || '')
   const [activeTab, setActiveTab] = useState<'journal' | 'brain' | 'journey' | 'todos' | 'daily'>('journal')
   const todos = useMemo(() => readTodos(progress['to-do-list']?.answers), [progress])
   const todoSync = useRef<Promise<void>>(Promise.resolve())
@@ -239,6 +243,7 @@ function App() {
   }
 
   // All hooks above must run on login, loading, and journal renders alike.
+  if (reminderToken) return <ReminderSignIn token={reminderToken} onDone={() => setReminderToken('')} />
   if (authError) return <main className="loading-screen" role="alert"><p>{authError}</p><button className="primary" onClick={() => window.location.reload()}>Try again</button></main>
   if (!authReady) return <div className="loading-screen"><span className="brand-mark">FTB</span><p>Opening your private journal…</p></div>
   if (cloudConfigured && !user) return <AuthScreen />
@@ -248,7 +253,7 @@ function App() {
   return <div className="app-shell">
     <header className="topbar">
       <button className="brand" onClick={() => setPageIndex(Math.min(pageIndex, maxUnlocked))} aria-label="For The Better home"><img className="brand-logo" src={`/logos/ftb-${theme}.png`} alt="" /><span><b>For The Better</b><small>Small steps. Real change.</small></span></button>
-      <div className="header-actions"><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
+      <div className="header-actions"><button className="icon-button" onClick={() => setShowReminders(true)} aria-label="Email reminders"><Bell size={20} /></button><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
     </header>
 
     <main className={activeTab === 'todos' || activeTab === 'daily' ? 'todo-main' : undefined}>
@@ -289,6 +294,7 @@ function App() {
       <div className="footer-details"><span>{user ? 'Signed in · Your entries are private to your account.' : 'Prototype mode · Entries save privately on this device.'}</span><button onClick={() => setShowTheme(true)}><Settings2 size={15} /> Appearance</button></div>
       <div className="creator-watermark"><img src="/kq-logo-watermark.png" alt="KQ brand logo" /><span>Created by Killer_Queen55</span></div>
     </footer>
+    {showReminders && <EmailReminders key={user?.id || 'local'} email={user?.email} onClose={() => setShowReminders(false)} />}
 
     {showTheme && <div className="modal-backdrop" onClick={() => setShowTheme(false)}><section className="theme-modal" onClick={event => event.stopPropagation()}><div className="section-heading"><div><span className="kicker">Make it yours</span><h2>Appearance</h2></div><button className="icon-button" onClick={() => setShowTheme(false)} aria-label="Close appearance">×</button></div><h3 className="option-heading">Color theme</h3><div className="theme-grid">{themes.map(item => <button key={item.id} className={`theme-choice ${theme === item.id ? 'selected' : ''}`} data-preview={item.id} onClick={() => setTheme(item.id)}><span className="theme-swatch"><i /><i /><i /></span><b>{item.label}</b><small>{item.hint}</small>{theme === item.id && <Check size={18} />}</button>)}</div><h3 className="option-heading font-heading">Reading font</h3><div className="font-grid">{fontModes.map(item => <button key={item.id} className={`font-choice ${fontMode === item.id ? 'selected' : ''}`} data-font-preview={item.id} onClick={() => setFontMode(item.id)}><span><b>{item.label}</b><small>{item.hint}</small></span>{fontMode === item.id && <Check size={18} />}</button>)}</div></section></div>}
   </div>
