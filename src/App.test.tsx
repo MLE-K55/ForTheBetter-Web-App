@@ -22,6 +22,22 @@ vi.mock('./lib/supabase', () => ({
   saveCloudProfile: cloud.save,
 }))
 const user = { id: 'test-user', email: 'test@example.com' }
+it('syncs the to do list and preserves daily habits when their tab is disabled', async () => {
+  cloud.getSession.mockResolvedValue({ data: { session: { user } }, error: null })
+  render(<App />)
+  fireEvent.click(await screen.findByRole('button', { name: 'To do list' }))
+  fireEvent.change(screen.getByLabelText('New task'), { target: { value: 'Build my app' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add task' }))
+  await waitFor(() => expect(cloud.save).toHaveBeenCalledWith(user, 'to-do-list', expect.objectContaining({ completed: false })))
+  fireEvent.click(screen.getByRole('switch'))
+  fireEvent.click(screen.getByRole('button', { name: 'Daily to do list' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Make the bed' }))
+  fireEvent.click(screen.getByRole('switch'))
+  expect(screen.queryByRole('button', { name: 'Daily to do list' })).toBeNull()
+  expect(screen.getByRole('heading', { name: 'Ultimate to do list' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('switch'))
+  expect(screen.getByLabelText('Complete Make the bed')).toBeTruthy()
+})
 beforeEach(() => {
   localStorage.clear()
   cloud.getSession.mockResolvedValue({ data: { session: null }, error: null })

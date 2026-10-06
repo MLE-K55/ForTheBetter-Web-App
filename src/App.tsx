@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, LockKeyhole, LogOut, Palette, Settings2, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, ListTodo, LockKeyhole, LogOut, Palette, Settings2, Sparkles, Sprout } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
 import BrainDump from './components/BrainDump'
+import TodoLists from './components/TodoLists'
+import { readTodos, type TodoStore } from './lib/todos'
 import { availabilityDay, journalPages, totalDays } from './data/journal'
 import { getStartDate, loadFontMode, loadProgress, loadTheme, saveFontMode, saveProgress, saveTheme } from './lib/storage'
 import { cloudConfigured, loadCloudProgress, saveCloudEntry, saveCloudProfile, supabase } from './lib/supabase'
@@ -82,7 +84,9 @@ function App() {
   const [saveError, setSaveError] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
   const [showTheme, setShowTheme] = useState(false)
-  const [activeTab, setActiveTab] = useState<'journal' | 'brain' | 'journey'>('journal')
+  const [activeTab, setActiveTab] = useState<'journal' | 'brain' | 'journey' | 'todos' | 'daily'>('journal')
+  const todos = useMemo(() => readTodos(progress['to-do-list']?.answers), [progress])
+  const todoSync = useRef<Promise<void>>(Promise.resolve())
   const startDate = useMemo(getStartDate, [])
   const page = journalPages[pageIndex]
   const entry = progress[page.id]
@@ -223,6 +227,17 @@ function App() {
     })
   }, [user])
 
+  const saveTodos = (store: TodoStore) => {
+    if (!store.dailyEnabled && activeTab === 'daily') setActiveTab('todos')
+    const nextEntry = { answers: { list: JSON.stringify(store) }, completed: false, updatedAt: new Date().toISOString() }
+    setProgress(previous => {
+      const next = { ...previous, 'to-do-list': nextEntry }
+      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
+      return next
+    })
+    if (user) todoSync.current = todoSync.current.then(() => saveCloudEntry(user, 'to-do-list', nextEntry)).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
+  }
+
   // All hooks above must run on login, loading, and journal renders alike.
   if (authError) return <main className="loading-screen" role="alert"><p>{authError}</p><button className="primary" onClick={() => window.location.reload()}>Try again</button></main>
   if (!authReady) return <div className="loading-screen"><span className="brand-mark">FTB</span><p>Opening your private journal…</p></div>
@@ -236,7 +251,7 @@ function App() {
       <div className="header-actions"><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
     </header>
 
-    <main>
+    <main className={activeTab === 'todos' || activeTab === 'daily' ? 'todo-main' : undefined}>
       {saveError && <p className="form-error" role="alert">{saveError}</p>}
       <section className="progress-card">
         <div><span className="kicker"><Flame size={15} /> 9 week journey</span><h1>Day {Math.min(currentDay, totalDays)} of {totalDays}</h1><p>Started {new Date(`${startDate}T12:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
@@ -244,9 +259,9 @@ function App() {
         <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
       </section>
 
-      <nav className="section-tabs" aria-label="Journal navigation"><button className={activeTab === 'journal' ? 'active' : ''} onClick={() => setActiveTab('journal')}><BookOpen size={18} /> Journal</button><button className={activeTab === 'brain' ? 'active' : ''} onClick={() => setActiveTab('brain')}><Brain size={18} /> Brain Dump</button><button className={activeTab === 'journey' ? 'active' : ''} onClick={() => setActiveTab('journey')}><CalendarDays size={18} /> Journey</button></nav>
+      <nav className="section-tabs" aria-label="Journal navigation"><button className={activeTab === 'journal' ? 'active' : ''} onClick={() => setActiveTab('journal')}><BookOpen size={18} /> Journal</button><button className={activeTab === 'brain' ? 'active' : ''} onClick={() => setActiveTab('brain')}><Brain size={18} /> Brain Dump</button><button className={activeTab === 'journey' ? 'active' : ''} onClick={() => setActiveTab('journey')}><CalendarDays size={18} /> Journey</button><button className={activeTab === 'todos' ? 'active' : ''} onClick={() => setActiveTab('todos')}><ListTodo size={18} /> To do list</button>{todos.dailyEnabled && <button className={activeTab === 'daily' ? 'active' : ''} onClick={() => setActiveTab('daily')}><Sprout size={18} /> Daily to do list</button>}</nav>
 
-      {activeTab === 'brain' ? <BrainDump entry={progress['brain-dump']} onSave={saveBrainDump} /> : activeTab === 'journey' ? <section className="journey-panel">
+      {activeTab === 'todos' || activeTab === 'daily' ? <TodoLists key={user?.id || 'local'} store={todos} onChange={saveTodos} dailyOnly={activeTab === 'daily'} /> : activeTab === 'brain' ? <BrainDump entry={progress['brain-dump']} onSave={saveBrainDump} /> : activeTab === 'journey' ? <section className="journey-panel">
         <div className="section-heading"><div><span className="kicker">Your path</span><h2>Nine weeks, one day at a time</h2></div><Sparkles /></div>
         {Array.from({ length: 9 }, (_, weekIndex) => {
           const weekPages = journalPages.map((item, index) => ({ item, index })).filter(({ item }) => item.week === weekIndex + 1)
