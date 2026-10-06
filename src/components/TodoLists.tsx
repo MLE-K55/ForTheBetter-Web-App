@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, Check, Clock3, GripVertical, ListTodo, LoaderCircle, Plus, Sparkles, Sprout, Star, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Check, Clock3, GripVertical, ListTodo, LoaderCircle, Plus, Sparkles, Sprout, Star, Trash2 } from 'lucide-react'
+import GoalSteps from './GoalSteps'
 import { supabase } from '../lib/supabase'
 import { localDay, moveTodo, newTodo, type Todo, type TodoStore } from '../lib/todos'
 
 export default function TodoLists({ store, onChange, dailyOnly }: { store: TodoStore; onChange: (value: TodoStore) => void; dailyOnly: boolean }) {
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('active')
   const [draft, setDraft] = useState('')
   const [dailyDraft, setDailyDraft] = useState('')
   const [consent, setConsent] = useState(false)
@@ -31,7 +34,7 @@ export default function TodoLists({ store, onChange, dailyOnly }: { store: TodoS
   }
   const toggleDaily = () => onChange({ ...store, dailyEnabled: !store.dailyEnabled })
   const estimate = async () => {
-    const snapshot = store.items.filter(item => !item.done)
+    const snapshot = store.items.filter(item => !item.done && !item.archived)
     setLoading(true); setNotice('')
     try {
       const session = (await supabase?.auth.getSession())?.data.session
@@ -70,17 +73,20 @@ export default function TodoLists({ store, onChange, dailyOnly }: { store: TodoS
 
   const rows = (daily: boolean) => {
     const items = daily ? store.daily : store.items
-    return <ul className="todo-rows">{items.map((item, index) => {
+    return <ul className="todo-rows">{items.filter(item => daily || ((filter === 'archived' ? item.archived : !item.archived) && (filter !== 'unfinished' || !item.done) && (filter !== 'completed' || item.done) && `${item.text} ${(item.steps || []).map(step => step.text).join(' ')}`.toLowerCase().includes(search.toLowerCase()))).map(item => {
+      const index = items.findIndex(task => task.id === item.id)
       const done = daily ? item.completedOn === today : item.done
       return <li key={item.id} className={`todo-row ${item.priority && !daily ? 'is-priority' : ''} ${done ? 'is-done' : ''}`} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const id = event.dataTransfer.getData('text/plain'); updateList(daily, moveTodo(items, id, item.id)) }}>
         <span className="todo-grip" draggable onDragStart={event => event.dataTransfer.setData('text/plain', item.id)} title="Drag to reorder"><GripVertical size={18} /></span>
-        <input className="todo-check" type="checkbox" aria-label={`Complete ${item.text}`} checked={done} onChange={() => edit(daily, item.id, daily ? { completedOn: done ? '' : today } : { done: !done })} />
+        <input className="todo-check" type="checkbox" aria-label={`Complete ${item.text}`} checked={done} onChange={() => edit(daily, item.id, daily ? { completedOn: done ? '' : today } : { done: !done, archived: false, priority: false })} />
         <div className="todo-content"><input className="todo-text" aria-label={`Edit task ${index + 1}${daily ? ' daily' : ''}`} value={item.text} maxLength={500} onChange={event => edit(daily, item.id, { text: event.target.value, estimate: '' })} />{item.priority && !daily && <small className="priority-label">Top priority</small>}
           {!daily && <label className="todo-estimate"><Clock3 size={13} /><input aria-label={`Time estimate for ${item.text}`} placeholder="Add time estimate" maxLength={80} value={item.estimate} onChange={event => edit(false, item.id, { estimate: event.target.value })} /></label>}
+          {!daily && <GoalSteps task={item} onChange={steps => edit(false, item.id, { steps })} />}
         </div>
-        <div className="todo-tools">{!daily && <button className={`todo-star ${item.priority ? 'selected' : ''}`} aria-label={`Top priority: ${item.text}`} aria-pressed={item.priority} disabled={!item.priority && store.items.filter(task => task.priority).length >= 3} onClick={() => edit(false, item.id, { priority: !item.priority })}><Star size={18} fill={item.priority ? 'currentColor' : 'none'} /></button>}
+        <div className="todo-tools">{!daily && <button className={`todo-star ${item.priority ? 'selected' : ''}`} aria-label={`Top priority: ${item.text}`} aria-pressed={item.priority} disabled={!item.priority && store.items.filter(task => task.priority && !task.archived && !task.done).length >= 3} onClick={() => edit(false, item.id, { priority: !item.priority })}><Star size={18} fill={item.priority ? 'currentColor' : 'none'} /></button>}
           <button aria-label={`Move ${item.text} up`} disabled={index === 0} onClick={() => updateList(daily, moveTodo(items, item.id, items[index - 1].id))}><ArrowUp size={15} /></button>
           <button aria-label={`Move ${item.text} down`} disabled={index === items.length - 1} onClick={() => updateList(daily, moveTodo(items, item.id, items[index + 1].id))}><ArrowDown size={15} /></button>
+          {!daily && item.done && <button aria-label={`${item.archived ? "Restore" : "Archive"} ${item.text}`} onClick={() => edit(false, item.id, { archived: !item.archived, priority: false })}>{item.archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}</button>}
           <button aria-label={`Delete ${item.text}`} onClick={() => updateList(daily, items.filter(task => task.id !== item.id))}><Trash2 size={15} /></button>
         </div>
       </li>
@@ -101,10 +107,11 @@ export default function TodoLists({ store, onChange, dailyOnly }: { store: TodoS
     <section className="todo-card master-card"><div className="todo-heading"><div><span className="kicker"><ListTodo size={15} /> Make room for your goals</span><h2>Ultimate to do list</h2></div><span className="todo-count"><Check size={13} />{store.items.filter(item => item.done).length}/{store.items.length}</span></div>
       <p className="todo-intro">Write down everything you want to do, big or small. Goals give your effort direction, and keeping them here helps you choose your next small step.</p>
       <form className="todo-add" onSubmit={event => { event.preventDefault(); add(false) }}><input aria-label="New task" placeholder="What do you want to do?" value={draft} maxLength={500} onChange={event => setDraft(event.target.value)} /><button className="primary" disabled={!draft.trim()}><Plus size={17} /><span>Add task</span></button></form>
-      <div className="todo-ai"><button className="secondary" disabled={loading || !consent || !store.items.some(item => !item.done)} onClick={estimate}>{loading ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{loading ? 'Estimating…' : 'AI sort & estimate'}</button><label><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span>Use Gemini to estimate these tasks <small>Sends task names to Google. The free service may use them to improve its products.</small></span></label></div>
+      <div className="todo-ai"><button className="secondary" disabled={loading || !consent || !store.items.some(item => !item.done && !item.archived)} onClick={estimate}>{loading ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{loading ? 'Estimating…' : 'AI sort & estimate'}</button><label><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span>Use Gemini to estimate these tasks <small>Sends task names to Google. The free service may use them to improve its products.</small></span></label></div>
       {notice && <p className="todo-notice" role="status">{notice}</p>}
-      <div className="todo-list-heading"><b>Everything you want to do</b><span>{store.items.filter(item => item.priority).length}/3 priorities</span></div>
-      {rows(false)}{!store.items.length && <div className="todo-empty"><ListTodo size={30} /><h3>Start with what’s on your mind</h3><p>A phone call, a project, a dream. Add your first task above.</p></div>}
+      <div className="todo-list-heading"><b>Everything you want to do</b><span>{store.items.filter(item => item.priority && !item.done && !item.archived).length}/3 priorities</span></div>
+      <div className="task-filters"><input type="search" aria-label="Search tasks" placeholder="Search tasks and steps…" value={search} onChange={event => setSearch(event.target.value)} /><select aria-label="Filter tasks" value={filter} onChange={event => setFilter(event.target.value)}><option value="active">All unarchived</option><option value="unfinished">Unfinished</option><option value="completed">Completed</option><option value="archived">Archive</option></select><button className="secondary" disabled={!store.items.some(item => item.done && !item.archived)} onClick={() => updateList(false, store.items.map(item => item.done ? { ...item, archived: true, priority: false } : item))}>Archive completed</button></div>
+      {rows(false)}{store.items.length > 0 && <p className="todo-hint">{filter === 'archived' ? 'Archived tasks are kept here. Restore a task whenever you want.' : 'Completed tasks can be archived to keep your list clear.'}</p>}{!store.items.length && <div className="todo-empty"><ListTodo size={30} /><h3>Start with what’s on your mind</h3><p>A phone call, a project, a dream. Add your first task above.</p></div>}
       <p className="todo-hint">Drag to reorder, or use the arrows. Star up to 3 items to mark them red as top priorities.</p><p className="todo-hint">AI times estimate effort, not deadlines. Adjust them to your pace; bigger goals may take many sessions.</p>
     </section>{dailyCard}
   </div>

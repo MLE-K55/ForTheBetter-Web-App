@@ -29,3 +29,18 @@ it('rejects fabricated ids and incomplete model responses', async () => {
   const { response } = await request({ mode: 'estimates', items: [{ id: 'a', text: 'Book appointment' }] }, [{ id: 'invented', estimate: '5 min', minutes: 5 }])
   expect(response.status).toHaveBeenCalledWith(502)
 })
+it('validates small-step suggestions and tells Gemini to treat the goal as untrusted data', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ id: crypto.randomUUID() }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ steps: ['Practice for five minutes', 'Learn three words'] }) }] } }] }) })
+  vi.stubGlobal('fetch', fetch)
+  const response = { status: vi.fn().mockReturnThis(), setHeader: vi.fn().mockReturnThis(), send: vi.fn() }
+  await handler({ method: 'POST', headers: { authorization: 'Bearer test' }, body: { mode: 'steps', text: 'Learn Spanish' } }, response)
+  expect(response.status).toHaveBeenCalledWith(200)
+  expect(JSON.parse(response.send.mock.calls[0][0]).steps).toHaveLength(2)
+  expect(JSON.parse(fetch.mock.calls[1][1].body).contents[0].parts[0].text).toContain('untrusted data')
+})
+it('rejects malformed step suggestions instead of persisting them', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ id: crypto.randomUUID() }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"steps":[42]}' }] } }] }) }))
+  const response = { status: vi.fn().mockReturnThis(), setHeader: vi.fn().mockReturnThis(), send: vi.fn() }
+  await handler({ method: 'POST', headers: { authorization: 'Bearer test' }, body: { mode: 'steps', text: 'Spanish' } }, response)
+  expect(response.status).toHaveBeenCalledWith(502)
+})

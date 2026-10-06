@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Bell, BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, ListTodo, LockKeyhole, LogOut, Palette, Settings2, Sparkles, Sprout } from 'lucide-react'
+import { Bell, Download, Target, BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, ListTodo, LockKeyhole, LogOut, Palette, Settings2, Sparkles, Sprout } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
 import BrainDump from './components/BrainDump'
 import TodoLists from './components/TodoLists'
+import TodayFocus from './components/TodayFocus'
+import { EntryQueue } from './lib/entry-sync'
+import { downloadExport } from './lib/export'
 import EmailReminders from './components/EmailReminders'
 import ReminderSignIn from './components/ReminderSignIn'
 import { readTodos, type TodoStore } from './lib/todos'
 import { availabilityDay, journalPages, totalDays } from './data/journal'
 import { getStartDate, loadFontMode, loadProgress, loadTheme, saveFontMode, saveProgress, saveTheme } from './lib/storage'
 import { cloudConfigured, loadCloudProgress, saveCloudEntry, saveCloudProfile, supabase } from './lib/supabase'
-import type { FontMode, JournalAnswers, JournalField, ProgressStore, ThemeName } from './types'
+import type { FontMode, JournalAnswers, JournalField, ProgressStore, SavedEntry, ThemeName } from './types'
 
 const themes: { id: ThemeName; label: string; hint: string }[] = [
   { id: 'light', label: 'Light', hint: 'Pure white & black' },
@@ -88,19 +91,45 @@ function App() {
   const [showTheme, setShowTheme] = useState(false)
   const [showReminders, setShowReminders] = useState(false)
   const [reminderToken, setReminderToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('reminder_token') || '')
-  const [activeTab, setActiveTab] = useState<'journal' | 'brain' | 'journey' | 'todos' | 'daily'>('journal')
+  const [activeTab, setActiveTab] = useState<'focus' | 'journal' | 'brain' | 'journey' | 'todos' | 'daily'>('focus')
   const todos = useMemo(() => readTodos(progress['to-do-list']?.answers), [progress])
-  const todoSync = useRef<Promise<void>>(Promise.resolve())
+  const queue = useRef<EntryQueue | null>(null)
+  const latestProgress = useRef(progress)
+  latestProgress.current = progress
+  const [waitingToSync, setWaitingToSync] = useState(false)
+  const [deviceSaved, setDeviceSaved] = useState(true)
+  const [exportError, setExportError] = useState('')
   const startDate = useMemo(getStartDate, [])
   const page = journalPages[pageIndex]
   const entry = progress[page.id]
   const answers = entry?.answers || {}
-  const completedCount = Object.values(progress).filter(item => item.completed).length
+  const completedCount = journalPages.filter(item => progress[item.id]?.completed).length
   const elapsedDays = Math.max(0, Math.floor((Date.now() - new Date(`${startDate}T00:00:00`).getTime()) / 86_400_000))
   const timeUnlockedIndex = journalPages.reduce((latest, item, index) => availabilityDay(item) <= elapsedDays ? index : latest, 0)
   const maxUnlocked = Math.min(completedCount, timeUnlockedIndex, journalPages.length - 1)
   const percent = Math.round((completedCount / journalPages.length) * 100)
   const currentDay = journalPages.slice(0, maxUnlocked + 1).filter(item => item.day > 0 && item.day < 8).length || 1
+
+  useEffect(() => {
+    if (!user) { queue.current = null; return }
+    let active = true
+    const accountQueue = new EntryQueue(user.id, (id, value) => saveCloudEntry(user, id, value), (pending, durable) => {
+      if (active) { setWaitingToSync(pending); setDeviceSaved(durable) }
+    })
+    queue.current = accountQueue
+    setWaitingToSync(Boolean(Object.keys(accountQueue.pending).length))
+    const retryOnline = () => { void accountQueue.flush() }
+    window.addEventListener('online', retryOnline)
+    return () => { active = false; window.removeEventListener('online', retryOnline) }
+  }, [user])
+
+  const persistEntry = useCallback((id: string, value: SavedEntry) => {
+    const next = { ...latestProgress.current, [id]: value }
+    latestProgress.current = next
+    setProgress(next)
+    if (user) queue.current?.add(id, value)
+    else setDeviceSaved(saveProgress(next))
+  }, [user])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -156,7 +185,7 @@ function App() {
     setLoadError('')
     setSaveError('')
     setPageIndex(0)
-    setActiveTab('journal')
+    setActiveTab('focus')
     if (!user) return
     let active = true
     const timeout = window.setTimeout(() => {
@@ -166,29 +195,21 @@ function App() {
     }, 15000)
     void loadCloudProgress(user).then(entries => {
       if (!active) return
-      setProgress(entries)
+      const restored = { ...entries, ...(queue.current?.userId === user.id ? queue.current.pending : {}) }
+      latestProgress.current = restored
+      setProgress(restored)
+      setPageIndex(Math.min(journalPages.filter(item => restored[item.id]?.completed).length, journalPages.reduce((latest, item, index) => availabilityDay(item) <= Math.max(0, Math.floor((Date.now() - new Date(`${startDate}T00:00:00`).getTime()) / 86_400_000)) ? index : latest, 0), journalPages.length - 1))
       setLoadedUserId(user.id)
+      void queue.current?.flush()
     }).catch(() => {
       if (active) setLoadError('We could not load your saved journal. Check your connection and try again.')
     }).finally(() => window.clearTimeout(timeout))
     return () => { active = false; window.clearTimeout(timeout) }
-  }, [user, retry])
+  }, [user, retry, startDate])
 
   const updateAnswer = (fieldId: string, value: JournalAnswers[string]) => {
-    setProgress(previous => {
-      const next = {
-        ...previous,
-        [page.id]: {
-          answers: { ...(previous[page.id]?.answers || {}), [fieldId]: value },
-          completed: previous[page.id]?.completed || false,
-          completedAt: previous[page.id]?.completedAt,
-          updatedAt: new Date().toISOString(),
-        },
-      }
-      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
-      if (user) void saveCloudEntry(user, page.id, next[page.id]).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
-      return next
-    })
+    const previous = latestProgress.current[page.id]
+    persistEntry(page.id, { answers: { ...(previous?.answers || {}), [fieldId]: value }, completed: previous?.completed || false, completedAt: previous?.completedAt, updatedAt: new Date().toISOString() })
   }
 
   const canComplete = page.fields.filter(field => field.required).every(field => isFilled(answers[field.id]))
@@ -197,20 +218,7 @@ function App() {
 
   const completePage = () => {
     if (!canComplete) return
-    setProgress(previous => {
-      const next = {
-        ...previous,
-        [page.id]: {
-          answers,
-          completed: true,
-          completedAt: previous[page.id]?.completedAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }
-      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
-      if (user) void saveCloudEntry(user, page.id, next[page.id]).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
-      return next
-    })
+    persistEntry(page.id, { answers, completed: true, completedAt: entry?.completedAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
     if (pageIndex < journalPages.length - 1 && pageIndex + 1 <= timeUnlockedIndex) setPageIndex(pageIndex + 1)
   }
 
@@ -222,24 +230,20 @@ function App() {
   }
 
   const saveBrainDump = useCallback((brainAnswers: JournalAnswers) => {
-    setProgress(previous => {
-      const nextEntry = { answers: brainAnswers, completed: false, updatedAt: new Date().toISOString() }
-      const next = { ...previous, 'brain-dump': nextEntry }
-      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
-      if (user) void saveCloudEntry(user, 'brain-dump', nextEntry).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
-      return next
-    })
-  }, [user])
+    persistEntry('brain-dump', { answers: brainAnswers, completed: false, updatedAt: new Date().toISOString() })
+  }, [persistEntry])
 
   const saveTodos = (store: TodoStore) => {
     if (!store.dailyEnabled && activeTab === 'daily') setActiveTab('todos')
-    const nextEntry = { answers: { list: JSON.stringify(store) }, completed: false, updatedAt: new Date().toISOString() }
-    setProgress(previous => {
-      const next = { ...previous, 'to-do-list': nextEntry }
-      if (!saveProgress(next)) setSaveError('This browser cannot save on this device. Keep this page open until your entries sync.')
-      return next
-    })
-    if (user) todoSync.current = todoSync.current.then(() => saveCloudEntry(user, 'to-do-list', nextEntry)).catch(() => setSaveError('Your latest changes could not sync. Keep this page open and check your connection.'))
+    persistEntry('to-do-list', { answers: { list: JSON.stringify(store) }, completed: false, updatedAt: new Date().toISOString() })
+  }
+  const retrySave = () => {
+    if (user) { void queue.current?.flush(); void saveCloudProfile(user, theme, fontMode).then(() => setSaveError('')).catch(() => setSaveError('Appearance is waiting to sync.')) }
+    else setDeviceSaved(saveProgress(latestProgress.current))
+  }
+  const exportData = () => {
+    try { downloadExport(latestProgress.current, theme, fontMode, startDate); setExportError('') }
+    catch { setExportError('Could not download your data. Please try again.') }
   }
 
   // All hooks above must run on login, loading, and journal renders alike.
@@ -250,13 +254,26 @@ function App() {
   if (loadError) return <main className="loading-screen" role="alert"><p>{loadError}</p><button className="primary" onClick={() => setRetry(value => value + 1)}>Try again</button></main>
   if (user && loadedUserId !== user.id) return <div className="loading-screen"><p>Loading your saved journal…</p></div>
 
+  const journalEditor = <article className="journal-card">
+        <div className="journal-heading"><div><span className="kicker">{page.eyebrow}</span><h2>{page.title}</h2></div>{entry?.completed && <span className="done-badge"><Check size={15} /> Complete</span>}</div>
+        {page.sourceStatus === 'draft' && <p className="draft-note">This heading came from the original book. These questions are still a draft because the source PDF repeats earlier pages.</p>}
+        {page.quote && <blockquote>“{page.quote}”</blockquote>}
+        {page.intro && <p className="intro">{page.intro}</p>}
+        {page.id === 'week-1-my-why' ? <MyWhyFields fields={page.fields} answers={answers} onChange={updateAnswer} /> : <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} />)}</div>}
+        <div className="completion-note"><LockKeyhole size={17} /><span>{entry?.completed && nextPageIsTimeLocked ? `You are done for today. Your next page opens ${nextUnlockDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'Answer every required question to unlock the next page. New daily entries open on their scheduled day.'}</span></div>
+        <div className="page-actions"><button className="secondary" disabled={pageIndex === 0} onClick={() => setPageIndex(pageIndex - 1)}><ChevronLeft size={18} /> Back</button><button className="primary" disabled={!canComplete || Boolean(entry?.completed && nextPageIsTimeLocked)} onClick={completePage}>{entry?.completed && nextPageIsTimeLocked ? 'Saved for today' : entry?.completed ? 'Continue' : 'Complete page'} <ChevronRight size={18} /></button></div>
+      </article>
+
   return <div className="app-shell">
     <header className="topbar">
       <button className="brand" onClick={() => setPageIndex(Math.min(pageIndex, maxUnlocked))} aria-label="For The Better home"><img className="brand-logo" src={`/logos/ftb-${theme}.png`} alt="" /><span><b>For The Better</b><small>Small steps. Real change.</small></span></button>
       <div className="header-actions"><button className="icon-button" onClick={() => setShowReminders(true)} aria-label="Email reminders"><Bell size={20} /></button><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
     </header>
 
-    <main className={activeTab === 'todos' || activeTab === 'daily' ? 'todo-main' : undefined}>
+    <main className={activeTab === 'todos' || activeTab === 'daily' || activeTab === 'focus' ? 'todo-main' : undefined}>
+      <div className="save-status" role="status"><span>{user ? waitingToSync ? 'Waiting to sync' : 'Synced' : deviceSaved ? 'Saved on this device' : 'Not saved on this device'}{user && waitingToSync && deviceSaved ? ' · Changes kept on this device' : ''}</span>{(waitingToSync || !deviceSaved || saveError) && <button className="secondary" onClick={retrySave}>Retry saving</button>}</div>
+      {!deviceSaved && <p className="form-error" role="alert">This browser could not keep a recovery copy. Keep the app open until synced, or download your data.</p>}
+      {exportError && <p className="form-error" role="alert">{exportError}</p>}
       {saveError && <p className="form-error" role="alert">{saveError}</p>}
       <section className="progress-card">
         <div><span className="kicker"><Flame size={15} /> 9 week journey</span><h1>Day {Math.min(currentDay, totalDays)} of {totalDays}</h1><p>Started {new Date(`${startDate}T12:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
@@ -264,9 +281,9 @@ function App() {
         <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
       </section>
 
-      <nav className="section-tabs" aria-label="Journal navigation"><button className={activeTab === 'journal' ? 'active' : ''} onClick={() => setActiveTab('journal')}><BookOpen size={18} /> Journal</button><button className={activeTab === 'brain' ? 'active' : ''} onClick={() => setActiveTab('brain')}><Brain size={18} /> Brain Dump</button><button className={activeTab === 'journey' ? 'active' : ''} onClick={() => setActiveTab('journey')}><CalendarDays size={18} /> Journey</button><button className={activeTab === 'todos' ? 'active' : ''} onClick={() => setActiveTab('todos')}><ListTodo size={18} /> To do list</button>{todos.dailyEnabled && <button className={activeTab === 'daily' ? 'active' : ''} onClick={() => setActiveTab('daily')}><Sprout size={18} /> Daily to do list</button>}</nav>
+      <nav className="section-tabs" aria-label="Journal navigation"><button className={activeTab === 'focus' ? 'active' : ''} onClick={() => { setPageIndex(maxUnlocked); setActiveTab('focus') }}><Target size={18} /> Today’s focus</button><button className={activeTab === 'journal' ? 'active' : ''} onClick={() => setActiveTab('journal')}><BookOpen size={18} /> Journal</button><button className={activeTab === 'brain' ? 'active' : ''} onClick={() => setActiveTab('brain')}><Brain size={18} /> Brain Dump</button><button className={activeTab === 'journey' ? 'active' : ''} onClick={() => setActiveTab('journey')}><CalendarDays size={18} /> Journey</button><button className={activeTab === 'todos' ? 'active' : ''} onClick={() => setActiveTab('todos')}><ListTodo size={18} /> To do list</button>{todos.dailyEnabled && <button className={activeTab === 'daily' ? 'active' : ''} onClick={() => setActiveTab('daily')}><Sprout size={18} /> Daily to do list</button>}</nav>
 
-      {activeTab === 'todos' || activeTab === 'daily' ? <TodoLists key={user?.id || 'local'} store={todos} onChange={saveTodos} dailyOnly={activeTab === 'daily'} /> : activeTab === 'brain' ? <BrainDump entry={progress['brain-dump']} onSave={saveBrainDump} /> : activeTab === 'journey' ? <section className="journey-panel">
+      {activeTab === 'focus' ? <TodayFocus store={todos} onChange={saveTodos} journal={journalEditor} onOpenTasks={() => setActiveTab('todos')} /> : activeTab === 'todos' || activeTab === 'daily' ? <TodoLists key={user?.id || 'local'} store={todos} onChange={saveTodos} dailyOnly={activeTab === 'daily'} /> : activeTab === 'brain' ? <BrainDump entry={progress['brain-dump']} onSave={saveBrainDump} /> : activeTab === 'journey' ? <section className="journey-panel">
         <div className="section-heading"><div><span className="kicker">Your path</span><h2>Nine weeks, one day at a time</h2></div><Sparkles /></div>
         {Array.from({ length: 9 }, (_, weekIndex) => {
           const weekPages = journalPages.map((item, index) => ({ item, index })).filter(({ item }) => item.week === weekIndex + 1)
@@ -279,19 +296,11 @@ function App() {
             </button>
           </article>
         })}
-      </section> : <article className="journal-card">
-        <div className="journal-heading"><div><span className="kicker">{page.eyebrow}</span><h2>{page.title}</h2></div>{entry?.completed && <span className="done-badge"><Check size={15} /> Complete</span>}</div>
-        {page.sourceStatus === 'draft' && <p className="draft-note">This heading came from the original book. These questions are still a draft because the source PDF repeats earlier pages.</p>}
-        {page.quote && <blockquote>“{page.quote}”</blockquote>}
-        {page.intro && <p className="intro">{page.intro}</p>}
-        {page.id === 'week-1-my-why' ? <MyWhyFields fields={page.fields} answers={answers} onChange={updateAnswer} /> : <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} />)}</div>}
-        <div className="completion-note"><LockKeyhole size={17} /><span>{entry?.completed && nextPageIsTimeLocked ? `You are done for today. Your next page opens ${nextUnlockDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'Answer every required question to unlock the next page. New daily entries open on their scheduled day.'}</span></div>
-        <div className="page-actions"><button className="secondary" disabled={pageIndex === 0} onClick={() => setPageIndex(pageIndex - 1)}><ChevronLeft size={18} /> Back</button><button className="primary" disabled={!canComplete || Boolean(entry?.completed && nextPageIsTimeLocked)} onClick={completePage}>{entry?.completed && nextPageIsTimeLocked ? 'Saved for today' : entry?.completed ? 'Continue' : 'Complete page'} <ChevronRight size={18} /></button></div>
-      </article>}
+      </section> : journalEditor}
     </main>
 
     <footer>
-      <div className="footer-details"><span>{user ? 'Signed in · Your entries are private to your account.' : 'Prototype mode · Entries save privately on this device.'}</span><button onClick={() => setShowTheme(true)}><Settings2 size={15} /> Appearance</button></div>
+      <div className="footer-details"><button onClick={exportData}><Download size={15} /> Download my data</button><span>{user ? 'Signed in · Your entries are private to your account.' : 'Prototype mode · Entries save privately on this device.'}</span><button onClick={() => setShowTheme(true)}><Settings2 size={15} /> Appearance</button></div>
       <div className="creator-watermark"><img src="/kq-logo-watermark.png" alt="KQ brand logo" /><span>Created by Killer_Queen55</span></div>
     </footer>
     {showReminders && <EmailReminders key={user?.id || 'local'} email={user?.email} onClose={() => setShowReminders(false)} />}

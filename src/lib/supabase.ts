@@ -32,7 +32,7 @@ export async function saveCloudEntry(user: User, pageId: string, entry: SavedEnt
     completed: entry.completed,
     completed_at: entry.completedAt || null,
     updated_at: entry.updatedAt,
-  }, { onConflict: 'user_id,page_id' })
+  }, { onConflict: 'user_id,page_id' }).abortSignal(AbortSignal.timeout(15000))
   if (error) throw error
 }
 
@@ -44,6 +44,6 @@ export async function saveCloudProfile(user: User, theme: ThemeName, fontMode: F
     theme,
     font_mode: fontMode,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' })
+  }, { onConflict: 'user_id' }).abortSignal(AbortSignal.timeout(15000))
   if (error) throw error
 }

@@ -46,3 +46,9 @@ To activate this feature on the existing Vercel/Supabase deployment:
 5. Open Email reminders, save a schedule, and send a test to your own verified account. Verify email arrival and that Continue to my journal signs you in. Then schedule a real reminder a few minutes ahead and confirm delivery and unsubscribe behavior.
 
 No reminder is sent until the user opts in. Settings APIs authenticate the requesting user and never accept a recipient address. Test emails are limited to one per ten minutes per account. Private tables have RLS and grant no access to browser roles. Scheduled batches claim rows with leases; a unique user/date delivery record and provider idempotency key protect against duplicates. A missed spring-forward time runs at the first available minute; fall-back sends once. Sender failures retry after the lease expires. Production readiness must be verified with a real test; a successful Git push alone does not activate email delivery.
+
+### Focus, goal steps, and keeping your data
+
+Today's focus combines unfinished starred priorities, the enabled daily checklist, and the current unlocked journal page. Tasks support manual small steps and optional Gemini suggestions that must be reviewed before adding. Search includes goal steps; completed items can be archived and restored.
+
+Edits queue in order. Failed cloud writes remain in a browser recovery queue scoped to the signed-in account, retry on reconnect, and can be retried with **Retry saving**. The app reports when browser storage cannot keep that copy. **Download my data** exports a readable JSON snapshot of journal entries, Brain Dump, tasks, archived goals, steps, and appearance preferences. Keep downloads private; they contain your writing. Gemini suggestions require the existing server-side `GEMINI_API_KEY` configuration.
