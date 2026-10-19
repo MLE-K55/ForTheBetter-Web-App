@@ -155,3 +155,62 @@ main.todo-main { width:min(100% - 28px,1120px) }
 .check-row input.journal-task-check { width:22px;height:22px;margin:3px;accent-color:var(--accent);cursor:pointer }
 .tutorial-done { margin-top:20px;width:100%;justify-content:center }
 .back-to-top .secondary,.tutorial-done { display:flex;align-items:center;gap:7px;padding:12px 18px;border-radius:14px;cursor:pointer;font-weight:700 }
+
+.more-panel { margin-top:20px }
+.more-panel h2 { margin:12px 0 }
+.more-panel>p { color:var(--muted);line-height:1.6 }
+.more-options { display:grid;gap:10px }
+.more-options button { display:grid;grid-template-columns:24px 1fr 20px;align-items:center;gap:12px;text-align:left;min-height:56px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);cursor:pointer }
+.more-options button svg:last-child { width:18px }
+.mobile-journal-entry h3 { font-size:24px;margin:12px 0 }
+.mobile-journal-entry p { color:var(--muted);line-height:1.6 }
+.mobile-journal-entry .primary { display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border-radius:14px;cursor:pointer;font-weight:700 }
+.desktop-invitation { text-align:center;padding:18px 14px;margin:20px 0;border:1px solid var(--border);border-radius:16px;background:var(--surface-2);font-size:14px;line-height:1.6;color:var(--text) }
+@media (max-width:700px) {
+  body { min-width:0 }
+  html { scroll-padding-bottom:110px }
+  .app-shell { padding-bottom:calc(92px + env(safe-area-inset-bottom)) }
+  .topbar { height:72px;padding:0 16px;gap:12px }
+  .topbar .brand b { font-size:16px }
+  .topbar .brand small { display:none }
+  .topbar .brand-logo { width:38px;height:38px }
+  .icon-button,.help-button { width:48px;height:48px;flex:none }
+  .topbar .icon-button { width:48px;height:48px }
+  .save-status { font-size:12px;margin-bottom:10px;min-height:24px }
+  .progress-card { padding:14px 16px;gap:10px;box-shadow:none;border-radius:18px;margin-bottom:20px }
+  .progress-card h1 { font-size:22px;margin:6px 0 0 }
+  .progress-card p,.progress-card .progress-ring { display:none }
+  .progress-card .kicker { font-size:10px }
+  .progress-track { height:4px }
+  .mobile-nav { position:fixed;z-index:8;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));border-top:1px solid var(--border);background:var(--bg);box-shadow:0 -4px 24px rgba(0,0,0,.08) }
+  .mobile-nav button { min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:6px 3px;border:0;border-radius:14px;background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer }
+  .mobile-nav button[aria-current='page'] { color:var(--text);background:var(--surface-2) }
+  .focus-intro h2 { font-size:28px;margin:6px 0 }
+  .focus-intro p { font-size:14px;margin-bottom:0 }
+  .focus-grid { grid-template-columns:minmax(0,1fr);gap:14px }
+  .focus-view { gap:16px }
+  .todo-hint { font-size:14px }
+  .todo-row .todo-check { width:24px;height:24px }
+  .todo-card,.journal-card,.brain-panel,.journey-panel { padding:20px;border-radius:20px;min-width:0 }
+  .focus-checks label { min-height:44px;align-items:center }
+  .focus-checks input { width:24px;height:24px;margin-top:0 }
+  .focus-grid .secondary,.save-status button,.back-to-top button { min-height:44px }
+  .todo-tools button { min-width:44px;min-height:44px }
+  .todo-tools { grid-template-columns:repeat(2,44px);gap:4px }
+  .todo-row { flex-wrap:wrap }
+  input:not([type='checkbox']),textarea,select { font-size:16px!important }
+  textarea { min-height:140px;scroll-margin-bottom:110px }
+  .field>span,.field legend { font-size:16px;line-height:1.5 }
+  .field input,.field textarea { padding:14px;min-width:0 }
+  .check-row { min-height:48px }
+  .check-row input.journal-task-check { width:28px;height:28px;flex:none }
+  .page-actions { position:static;margin:22px 0 0;padding:0;border:0;background:none;backdrop-filter:none;flex-wrap:wrap }
+  .page-actions button { min-height:50px }
+  .modal-backdrop { padding:12px;padding-bottom:max(12px,env(safe-area-inset-bottom)) }
+  .theme-modal,.help-modal { max-height:calc(100dvh - 24px);padding:20px }
+  .help-tip p,.help-tip ol,.help-contact p { font-size:14px }
+  .footer-details { flex-direction:column;align-items:center;text-align:center;line-height:1.6;gap:14px }
+  .footer-details button { min-height:44px;font-size:13px }
+  .creator-watermark { margin-top:18px }
+  .more-panel { margin-top:0 }
+}
