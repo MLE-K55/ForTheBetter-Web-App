@@ -145,14 +145,14 @@ export const journalPages: JournalPage[] = lessons.flatMap((lesson, index) => {
     week,
     day: dayIndex + 1,
     eyebrow: `Week ${week} · Day ${dayIndex + 1}`,
-    title: 'Daily Grind',
+    title: 'Daily Reflection',
     quote: dailyQuotes[dayIndex],
     fields: [
       { id: 'date', label: 'Date', kind: 'date', required: true },
       { id: 'mission', label: 'Main Mission', kind: 'textarea', required: true },
       { id: 'today', label: 'Do It Today', kind: 'checklist', required: true, count: 3 },
       { id: 'gratitude', label: 'I am grateful for…', kind: 'checklist', required: true, count: 3 },
-      { id: 'review', label: 'Daily Grind Review', kind: 'textarea', required: true },
+      { id: 'review', label: 'Daily Reflection', kind: 'textarea', required: true },
     ],
   }))
 

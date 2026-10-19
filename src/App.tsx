@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Bell, Download, Target, BookOpen, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, ExternalLink, Flame, ListTodo, LockKeyhole, LogOut, Palette, Settings2, Sparkles, Sprout } from 'lucide-react'
+import { ArrowUp, Bell, Download, Target, BookOpen, Bookmark, Brain, CalendarDays, Check, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, Flame, ListTodo, LockKeyhole, LogOut, MessageCircle, Palette, Settings2, Smartphone, Sparkles, Sprout, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import AuthScreen from './components/AuthScreen'
 import BrainDump from './components/BrainDump'
@@ -35,11 +35,11 @@ function isFilled(value: unknown) {
   return String(value || '').trim().length > 0
 }
 
-function Field({ field, value, onChange }: { field: JournalField; value: JournalAnswers[string]; onChange: (value: JournalAnswers[string]) => void }) {
+function Field({ field, value, onChange, checked = [], onCheck }: { field: JournalField; value: JournalAnswers[string]; onChange: (value: JournalAnswers[string]) => void; checked?: string[]; onCheck?: (value: string[]) => void }) {
   if (field.kind === 'date') return <label className="field"><span>{field.label}</span><input type="date" value={String(value || '')} onChange={e => onChange(e.target.value)} /></label>
   if (field.kind === 'checklist') {
     const values = Array.isArray(value) ? value : Array.from({ length: field.count || 3 }, () => '')
-    return <fieldset className="field checklist"><legend>{field.label}</legend>{values.map((item, index) => <label key={index} className="check-row"><span className="check-box">{item ? <Check size={14} /> : index + 1}</span><input value={item} placeholder={`Item ${index + 1}`} onChange={e => { const next = [...values]; next[index] = e.target.value; onChange(next) }} /></label>)}</fieldset>
+    return <fieldset className="field checklist"><legend>{field.label}</legend>{values.map((item, index) => <div key={index} className="check-row">{onCheck ? <input className="journal-task-check" type="checkbox" aria-label={`Complete ${field.label} item ${index + 1}`} checked={checked.includes(String(index))} onChange={e => onCheck(e.target.checked ? [...checked, String(index)] : checked.filter(id => id !== String(index)))} /> : <span className="check-box">{index + 1}</span>}<input aria-label={`${field.label} item ${index + 1}`} value={item} placeholder={`Item ${index + 1}`} onChange={e => { const next = [...values]; next[index] = e.target.value; onChange(next) }} /></div>)}</fieldset>
   }
   return <label className="field"><span>{field.label}</span><textarea rows={field.kind === 'text' ? 2 : 4} value={String(value || '')} placeholder="Write honestly…" onChange={e => onChange(e.target.value)} /></label>
 }
@@ -91,6 +91,16 @@ function App() {
   const [showTheme, setShowTheme] = useState(false)
   const [showReminders, setShowReminders] = useState(false)
   const [reminderToken, setReminderToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('reminder_token') || '')
+  const [showHelp, setShowHelp] = useState(false)
+  const tutorialKey = `ftb-tutorial-v1:${user?.id || 'local'}`
+  const closeHelp = useCallback(() => {
+    try { localStorage.setItem(tutorialKey, 'seen') } catch { /* Tutorial remains usable without storage. */ }
+    setShowHelp(false)
+  }, [tutorialKey])
+  useEffect(() => {
+    if (!authReady || (cloudConfigured && (!user || loadedUserId !== user.id))) return
+    try { if (!localStorage.getItem(tutorialKey) && Object.keys(latestProgress.current).length === 0) setShowHelp(true) } catch { setShowHelp(true) }
+  }, [authReady, user, loadedUserId, tutorialKey])
   const [activeTab, setActiveTab] = useState<'focus' | 'journal' | 'brain' | 'journey' | 'todos' | 'daily'>('focus')
   const todos = useMemo(() => readTodos(progress['to-do-list']?.answers), [progress])
   const queue = useRef<EntryQueue | null>(null)
@@ -207,6 +217,27 @@ function App() {
     return () => { active = false; window.clearTimeout(timeout) }
   }, [user, retry, startDate])
 
+  useEffect(() => {
+    if (!showHelp) return
+    const previousFocus = document.activeElement as HTMLElement | null
+    const dialog = document.querySelector<HTMLElement>('.help-modal')
+    const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>('button, a[href]') || [])
+    focusable()[0]?.focus()
+    const oldOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') {
+        const elements = focusable()
+        const first = elements[0], last = elements[elements.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+      }
+      if (event.key === 'Escape') closeHelp()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => { window.removeEventListener('keydown', closeOnEscape); document.body.style.overflow = oldOverflow; previousFocus?.focus() }
+  }, [showHelp, closeHelp])
+
   const updateAnswer = (fieldId: string, value: JournalAnswers[string]) => {
     const previous = latestProgress.current[page.id]
     persistEntry(page.id, { answers: { ...(previous?.answers || {}), [fieldId]: value }, completed: previous?.completed || false, completedAt: previous?.completedAt, updatedAt: new Date().toISOString() })
@@ -259,15 +290,15 @@ function App() {
         {page.sourceStatus === 'draft' && <p className="draft-note">This heading came from the original book. These questions are still a draft because the source PDF repeats earlier pages.</p>}
         {page.quote && <blockquote>“{page.quote}”</blockquote>}
         {page.intro && <p className="intro">{page.intro}</p>}
-        {page.id === 'week-1-my-why' ? <MyWhyFields fields={page.fields} answers={answers} onChange={updateAnswer} /> : <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} />)}</div>}
+        {page.id === 'week-1-my-why' ? <MyWhyFields fields={page.fields} answers={answers} onChange={updateAnswer} /> : <div className="fields">{page.fields.map(field => <Field key={field.id} field={field} value={answers[field.id]} onChange={value => updateAnswer(field.id, value)} checked={Array.isArray(answers[`${field.id}-checked`]) ? answers[`${field.id}-checked`] as string[] : []} onCheck={field.id === 'today' ? value => updateAnswer(`${field.id}-checked`, value) : undefined} />)}</div>}
         <div className="completion-note"><LockKeyhole size={17} /><span>{entry?.completed && nextPageIsTimeLocked ? `You are done for today. Your next page opens ${nextUnlockDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'Answer every required question to unlock the next page. New daily entries open on their scheduled day.'}</span></div>
         <div className="page-actions"><button className="secondary" disabled={pageIndex === 0} onClick={() => setPageIndex(pageIndex - 1)}><ChevronLeft size={18} /> Back</button><button className="primary" disabled={!canComplete || Boolean(entry?.completed && nextPageIsTimeLocked)} onClick={completePage}>{entry?.completed && nextPageIsTimeLocked ? 'Saved for today' : entry?.completed ? 'Continue' : 'Complete page'} <ChevronRight size={18} /></button></div>
       </article>
 
   return <div className="app-shell">
     <header className="topbar">
-      <button className="brand" onClick={() => setPageIndex(Math.min(pageIndex, maxUnlocked))} aria-label="For The Better home"><img className="brand-logo" src={`/logos/ftb-${theme}.png`} alt="" /><span><b>For The Better</b><small>Small steps. Real change.</small></span></button>
-      <div className="header-actions"><button className="icon-button" onClick={() => setShowReminders(true)} aria-label="Email reminders"><Bell size={20} /></button><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
+      <div className="topbar-left"><button className="brand" onClick={() => setPageIndex(Math.min(pageIndex, maxUnlocked))} aria-label="For The Better home"><img className="brand-logo" src={`/logos/ftb-${theme}.png`} alt="" /><span><b>For The Better</b><small>Small steps. Real change.</small></span></button></div>
+      <div className="header-actions"><button className="help-button" onClick={() => setShowHelp(true)} aria-label="Open help and app tips" aria-haspopup="dialog"><CircleHelp size={22} /></button><button className="icon-button" onClick={() => setShowReminders(true)} aria-label="Email reminders"><Bell size={20} /></button><button className="icon-button" onClick={() => setShowTheme(true)} aria-label="Choose appearance"><Palette size={20} /></button><button className="logout-button" onClick={() => user && supabase?.auth.signOut()}><LogOut size={16} /> Log out</button></div>
     </header>
 
     <main className={activeTab === 'todos' || activeTab === 'daily' || activeTab === 'focus' ? 'todo-main' : undefined}>
@@ -297,6 +328,7 @@ function App() {
           </article>
         })}
       </section> : journalEditor}
+      <div className="back-to-top"><button className="secondary" onClick={() => { window.scrollTo({ top: 0, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); document.querySelector<HTMLButtonElement>('.help-button')?.focus({ preventScroll: true }) }}><ArrowUp size={17} /> Back to top</button></div>
     </main>
 
     <footer>
@@ -306,6 +338,7 @@ function App() {
     {showReminders && <EmailReminders key={user?.id || 'local'} email={user?.email} onClose={() => setShowReminders(false)} />}
 
     {showTheme && <div className="modal-backdrop" onClick={() => setShowTheme(false)}><section className="theme-modal" onClick={event => event.stopPropagation()}><div className="section-heading"><div><span className="kicker">Make it yours</span><h2>Appearance</h2></div><button className="icon-button" onClick={() => setShowTheme(false)} aria-label="Close appearance">×</button></div><h3 className="option-heading">Color theme</h3><div className="theme-grid">{themes.map(item => <button key={item.id} className={`theme-choice ${theme === item.id ? 'selected' : ''}`} data-preview={item.id} onClick={() => setTheme(item.id)}><span className="theme-swatch"><i /><i /><i /></span><b>{item.label}</b><small>{item.hint}</small>{theme === item.id && <Check size={18} />}</button>)}</div><h3 className="option-heading font-heading">Reading font</h3><div className="font-grid">{fontModes.map(item => <button key={item.id} className={`font-choice ${fontMode === item.id ? 'selected' : ''}`} data-font-preview={item.id} onClick={() => setFontMode(item.id)}><span><b>{item.label}</b><small>{item.hint}</small></span>{fontMode === item.id && <Check size={18} />}</button>)}</div></section></div>}
+    {showHelp && <div className="modal-backdrop help-backdrop" onClick={closeHelp}><section className="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title" onClick={event => event.stopPropagation()}><div className="help-heading"><div><span className="kicker"><CircleHelp size={15} /> Help and tips</span><h2 id="help-title">Welcome to For The Better</h2><p>Take small steps, reflect on your day, and build lasting change at your own pace.</p></div><button className="icon-button" onClick={closeHelp} aria-label="Close help"><X size={20} /></button></div><div className="help-sections"><section className="help-tip"><Sprout size={21} /><div><h3>What is Kaizen?</h3><p>Kaizen means improvement. Its philosophy is to keep making small, continuous improvements rather than trying to change everything at once. Choose one manageable action, practice it, reflect on what worked, and adjust your next step. Progress does not require perfection.</p></div></section><section className="help-tip"><BookOpen size={21} /><div><h3>Start your journal</h3><p>Today’s focus brings your current journal page, priorities, and daily habits together. Use Journal to answer the prompts, then select Complete page when you are ready. Required answers unlock the next page; daily pages open on their scheduled day. Journey shows your nine-week path and lets you revisit unlocked pages.</p></div></section><section className="help-tip"><ListTodo size={21} /><div><h3>Turn intentions into small actions</h3><p>Use To do list to capture tasks and goals, break goals into steps, and star up to three priorities. Enable the Daily to do list for repeatable habits; its checkmarks reset each day. On Daily Reflection pages, write your mission, three actions, gratitude, and reflection. Check an action’s box when you have done it—typing it does not complete it.</p></div></section><section className="help-tip"><Brain size={21} /><div><h3>Make the app work for you</h3><p>Brain Dump gives you space to clear your mind. Your edits save automatically; check the save status for confirmation. Use the palette at the top to change themes and reading fonts, the bell for email reminders, and Download my data at the bottom to export your journal. Open this question mark anytime to revisit the tutorial.</p></div></section><section className="help-tip"><Smartphone size={21} /><div><h3>Add it to an iPhone home screen</h3><ol><li>Open For The Better in Safari.</li><li>Tap the Share button at the bottom of the screen.</li><li>Scroll down and tap Add to Home Screen.</li><li>Tap Add in the top right corner.</li></ol></div></section><section className="help-tip"><Smartphone size={21} /><div><h3>Add it to an Android home screen</h3><ol><li>Open For The Better in Chrome.</li><li>Tap the three dots in the top right corner.</li><li>Tap Add to Home screen or Install app.</li><li>Follow the message on your screen to finish.</li></ol></div></section><section className="help-tip"><Bookmark size={21} /><div><h3>Bookmark the app</h3><p>On a computer, press Ctrl and D on Windows or Command and D on a Mac. On a phone, open your browser menu or Share menu and choose Add Bookmark.</p></div></section></div><div className="help-contact"><MessageCircle size={22} /><div><h3>Still need help?</h3><p>Questions, concerns, and feedback are always welcome.</p><a href="https://www.instagram.com/killer__queen55/" target="_blank" rel="noreferrer">Message killer__queen55 on Instagram <ExternalLink size={15} /></a></div></div><button className="primary tutorial-done" onClick={closeHelp}>Start my journey</button></section></div>}
   </div>
 }
 
